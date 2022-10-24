@@ -3,6 +3,7 @@
 import pytest
 import numpy as np
 import os
+import sys
 from interva.interva5 import get_example_input
 from insilicova.insilicova import InSilicoVA, InSilicoVAException
 
@@ -23,11 +24,11 @@ def test_warning_write(tmp_path):
     assert os.path.isfile(log_file)
 
 
+@pytest.mark.xfail(sys.platform == "win32",
+                   reason="doesn't trigger windows permission error")
 def test_warning_write_exception():
     with pytest.raises(InSilicoVAException):
-        root = os.path.abspath(os.sep)
-        bad_log_path = os.path.join(root, "Program Files", "bad", "path")
-        InSilicoVA(data=va_data, warning_write=True, directory=bad_log_path)
+        InSilicoVA(data=va_data, warning_write=True, directory="/bad/path")
 
 
 class TestInterVATable:

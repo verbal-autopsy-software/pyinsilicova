@@ -2,6 +2,7 @@
 
 import pytest
 import numpy as np
+import os
 from interva.interva5 import get_example_input
 from insilicova.insilicova import InSilicoVA, InSilicoVAException
 
@@ -13,8 +14,13 @@ def test_data_type_warning():
         InSilicoVA(data=va_data, data_type="WHO2016", datacheck=False)
 
 
-def test_warning_write():
-    pytest.fail("Need test and function for error log creation.")
+@pytest.mark.skip("A reminder to update this test when fnc is created")
+def test_warning_write(tmp_path):
+    results = InSilicoVA(data=va_data,
+                         directory=tmp_path,
+                         warning_write=True)
+    log_file = tmp_path / "errorlog_insilico.txt"
+    assert os.path.isfile(log_file)
 
 
 def test_warning_write_exception():

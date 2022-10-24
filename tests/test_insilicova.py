@@ -26,7 +26,7 @@ def test_warning_write(tmp_path):
 def test_warning_write_exception():
     with pytest.raises(InSilicoVAException):
         root = os.path.abspath(os.sep)
-        bad_log_path = os.path.join(root, "test", "bad", "path")
+        bad_log_path = os.path.join(root, "Program Files", "bad", "path")
         InSilicoVA(data=va_data, warning_write=True, directory=bad_log_path)
 
 

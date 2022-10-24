@@ -80,7 +80,7 @@ class InSilicoVA:
         if self.warning_write:
             try:
                 os.makedirs(self.directory, exist_ok=True)
-            except PermissionError as exc:
+            except (PermissionError, OSError) as exc:
                 raise InSilicoVAException(
                     f"InSilicoVA unable to create {self.directory}:\n{exc}")
 

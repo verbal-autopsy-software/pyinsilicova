@@ -85,9 +85,10 @@ class InSilicoVA:
                     f"InSilicoVA unable to create {self.directory}:\n{exc}")
 
     @staticmethod
-    def _interva_table(standard: bool = True,
-                       min_level: Union[None, float] = None,
-                       table_num_dev: Union[None, np.ndarray] = None) -> np.ndarray:
+    def _interva_table(
+            standard: bool = True,
+            min_level: Union[None, float] = None,
+            table_num_dev: Union[None, np.ndarray] = None) -> np.ndarray:
         """Function to return the interVA conversion table for alphabetic
         levels also change the smallest value from 0 to user input.
 
@@ -121,3 +122,94 @@ class InSilicoVA:
                 return new_tab
             else:
                 return new_tab
+
+    def _scale_vec_inter(
+            self,
+            vector: np.ndarray,
+            scale: Union[None, float] = None,
+            scale_max: Union[None, float] = None) -> Union[None, np.ndarray]:
+        """Function to map ordered input vector to InterVA alphabetic scale.
+        Note: to avoid 0, change the last element in InterVA table to 0.000001.
+
+        :param vector: vector to be scaled
+        :type vector: np.ndarray
+        :param scale: sum of the vector after scaling
+        :type scale: float
+        :param scale_max: max of the vector after scaling
+        :type scale_max: float
+        :returns: rescaled vector
+        :rtype: numpy.ndarray
+        """
+        dist = self._interva_table(standard=True, min_level=0.000001)
+        if len(dist) != len(dist):
+            raise InSilicoVAException(
+                "Dimension of probbase prior is incorrect.")
+        out_vector = dist[vector.argsort()]
+        if scale:
+            return scale * (out_vector / out_vector.sum())
+        if scale_max:
+            return (scale_max * out_vector) / out_vector.max()
+
+    def _change_inter(
+            self,
+            x: np.ndarray,
+            order: bool = False,
+            standard: bool = True,
+            table_dev: Union[None, np.ndarray] = None,
+            table_num_dev: Union[None, np.ndarray] = None) -> np.ndarray:
+        """Translate alphabetic array into numeric array (potentially ordered)
+
+        :param x: alphabetic array
+        :type x: numpy.ndarray
+        :param order: whether to change the array into an ordered array
+        :type order: bool
+        :param standard: whether to use the standard table
+        :type standard: bool
+        :param table_dev: new table of level names used (high to low)
+        :type table_dev: numpy.ndarray
+        :param table_num_dev: new table of numerical values corresponding to
+        table_dev
+        :type table_num_dev: numpy.ndarray
+        :return: numeric array that is a mapping of alphabetic array
+        :rtype: numpy.ndarray
+        """
+
+        y = np.zeros(x.shape)
+        inter_table = self._interva_table(standard=standard,
+                                          table_num_dev=table_num_dev,
+                                          min_level=0)
+        if table_dev:
+            if len(table_dev) != len(table_num_dev):
+                raise InSilicoVAException(
+                    "table_dev and table_num_dev have different lengths"
+                )
+            for i in range(len(table_dev)):
+                y[x == table_dev[i]] = inter_table[i]
+        else:
+            y[x == "I"] = inter_table[0]
+            y[x == "A+"] = inter_table[1]
+            y[x == "A"] = inter_table[2]
+            y[x == "A-"] = inter_table[3]
+            y[x == "B+"] = inter_table[4]
+            y[x == "B"] = inter_table[5]
+            y[x == "B-"] = inter_table[6]
+            y[x == "B -"] = inter_table[6]
+            y[x == "C+"] = inter_table[7]
+            y[x == "C"] = inter_table[8]
+            y[x == "C-"] = inter_table[9]
+            y[x == "D+"] = inter_table[10]
+            y[x == "D"] = inter_table[11]
+            y[x == "D-"] = inter_table[12]
+            y[x == "E"] = inter_table[13]
+            y[x == "N"] = inter_table[14]
+            y[x == ""] = inter_table[14]
+
+        if order:
+            for i in range(len(inter_table)):
+                y_new = y.copy()
+                y_new[y == inter_table[i]] = i + 1
+                y = y_new
+        return y
+
+    def _cond_initiate(self):
+        pass

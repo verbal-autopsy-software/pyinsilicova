@@ -7,6 +7,7 @@ insilicova.insilicova
 This module contains the class for the InSilicoVA algorithm.
 """
 
+from insilicova.exceptions import InSilicoVAException
 from dataclasses import dataclass
 from typing import Union
 from vacheck.datacheck5 import datacheck5
@@ -14,10 +15,6 @@ import warnings
 import os
 import pandas as pd
 import numpy as np
-
-
-class InSilicoVAException(Exception):
-    """ Base exception for package"""
 
 
 class InSilicoVA:
@@ -50,7 +47,7 @@ class InSilicoVA:
                  levels_strength: int = 1,
                  trunc_min: float = 0.0001,
                  trunc_max: float = 0.9999,
-                 subpop: Union[None, str] = None,
+                 subpop: Union[None, list, str, pd.DataFrame] = None,
                  java_option: str = "-Xmx1g",
                  seed: int = 1,
                  phy_code: Union[None, pd.DataFrame] = None,
@@ -64,8 +61,51 @@ class InSilicoVA:
                  indiv_ci: Union[None, float] = None,
                  groupcode: bool = False):
 
-        # assign all the arguments as instance attributes
-        vars(self).update(locals())
+        self.data = data.copy()
+        self.data_type = data_type
+        self.sci = sci
+        self.is_numeric = is_numeric
+        self.update_cond_prob = update_cond_prob
+        self.keep_probbase_level = keep_probbase_level
+        self.cond_prob = cond_prob
+        self.cond_prob_num = cond_prob_num
+        self.datacheck = datacheck
+        self.datacheck_missing = datacheck_missing
+        self.warning_write = warning_write
+        self.directory = directory
+        self.external_sep = external_sep
+        self.n_sim = n_sim
+        self.thin = thin
+        self.burnin = burnin
+        self.auto_length = auto_length
+        self.conv_csmf = conv_csmf
+        self.jump_scale = jump_scale
+        self.levels_prior = levels_prior
+        self.levels_strength = levels_strength
+        self.trunc_min = trunc_min
+        self.trunc_max = trunc_max
+        self.subpop = subpop
+        self.java_option = java_option
+        self.seed = seed
+        self.phy_code = phy_code
+        self.phy_cat = phy_cat
+        self.phy_unknown = phy_unknown
+        self.phy_external = phy_external
+        self.phy_debias = phy_debias
+        self.exclude_impossible_causes = exclude_impossible_causes
+        self.impossible_combination = impossible_combination
+        self.no_is_missing = no_is_missing
+        self.indiv_ci = indiv_ci
+        self.groupcode = groupcode
+        self.error_log = {}
+
+        self.original_data = data.copy()
+        if isinstance(subpop, str):
+            self.original_subpop = subpop
+        elif subpop:
+            self.original_subpop = subpop.copy()
+        else:
+            self.original_subpop = None
         self._check_args()
 
     def _check_args(self):
@@ -211,5 +251,97 @@ class InSilicoVA:
                 y = y_new
         return y
 
-    def _cond_initiate(self):
+    def _cond_initiate(self,
+                       probbase_order: np.ndarray,
+                       exp_ini: bool,
+                       inter_ini: bool,
+                       probbase_min: float,
+                       probbase_max: float) -> np.ndarray:
+        """Randomly initialize probbase from order matrix.
+
+        :param probbase_order: order matrix
+        :type probbase_order: numpy.ndarrary
+        :param exp_ini: initialize to exponential of uniform
+        :type exp_ini: bool
+        :param inter_ini: initialize to InterVA probbase values
+        :type inter_ini: bool
+        :param probbase_min: minimum of probbase values
+        :type probbase_min: float
+        :param probbase_max: maximum of probbase values
+        :type probbase_max: float
+        :return: new probbase matrix
+        :rtype: numpy.ndarray
+        """
+        trunc_min = probbase_min
+        trunc_max = probbase_max
+        if probbase_min == 0:
+            trunc_min = 0.01
+        if probbase_max == 1:
+            trunc_max = 0.99
+        n_levels = int(probbase_order.max())
+        levels = np.unique(probbase_order)
+        levels = np.sort(levels)[::-1]
+        if exp_ini:
+            random_levels = np.random.uniform(low=np.log(trunc_min),
+                                              high=np.log(trunc_max),
+                                              size=n_levels)
+            random_levels = np.exp(random_levels)
+        else:
+            random_levels = np.random.uniform(low=trunc_min,
+                                              high=trunc_max,
+                                              size=n_levels)
+        random_levels = np.sort(random_levels)[::-1]
+        if inter_ini:
+            random_levels = self._interva_table(standard=True, min_level=0)
+            random_levels = (random_levels * (trunc_max - trunc_min)) + trunc_min
+        prob_random = probbase_order.copy()
+        for i in range(n_levels):
+            prob_random[probbase_order == levels[i]] = random_levels[i]
+
+        return prob_random
+
+    def _remove_bad(self, is_numeric: bool) -> None:
+        """Function to remove data with no sex/age indicators
+
+        :param is_numeric: Indicator if the input is already in numeric format.
+        :type is_numeric: bool
+        """
+        if not is_numeric:
+            data_num = np.zeros(self.data.shape)
+            data_num[self.data == "Y"] = 1
+        else:
+            data_num = self.data.copy()
+        drop_rows = set()
+
+        for i in range(self.data.shape[0]):
+            if sum(data_num[i, 1:8]) < 1:
+                drop_rows.add(i)
+                tmp_id = self.data.iat[i, 0]
+                self.error_log[tmp_id] = "Error in age indicator: not specified"
+            if sum(data_num[i, 8:10]) < 1:
+                drop_rows.add(i)
+                tmp_id = self.data.iat[i, 0]
+                self.error_log[tmp_id] = "Error in sex indicator: not specified"
+            if sum(data_num[i, 22:223]) < 1:
+                drop_rows.add(i)
+                tmp_id = self.data.iat[i, 0]
+                self.error_log[tmp_id] = "Error in indicators: no symptoms specified"
+        drop_rows = list(drop_rows)
+        self.data.drop(drop_rows, axis=0, inplace=True)
+        if isinstance(self.subpop, (pd.DataFrame, pd.Series)):
+            self.subpop.drop(drop_rows, axis=0, inplace=True)
+
+    def _remove_bad5(self,
+                    is_numeric: bool,
+                    subpop: Union[str, list[str], pd.Series]) -> None:
+        """Function to remove data with no sex/age indicators
+
+        :param is_numeric: Indicator if the input is already in numeric format.
+        :type is_numeric: bool
+        :param subpop: Either column name(s) (in va_data) of the variable(s)
+        or a vector that identify the subpopulations for stratified cause
+        assignment.  The vector could be numerical indicator or
+        characters/names.
+        :type subpop: str, list of stings, or pandas.Series
+        """
         pass

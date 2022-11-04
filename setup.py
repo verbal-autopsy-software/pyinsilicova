@@ -23,11 +23,11 @@ setup(
     url=about["__url__"],
     license=about["__license__"],
     packages=find_namespace_packages(),
-    # include_package_data=True,
-    # package_dir={"": "."},
-    # package_data={
-    #     "insilicova.data": ["*.csv", "*.xls"],
-    # },
+    include_package_data=True,
+    package_dir={"": "."},
+    package_data={
+        "insilicova.data": ["*.csv"],
+    },
     install_requires=[
         "pandas",
         "xlrd",

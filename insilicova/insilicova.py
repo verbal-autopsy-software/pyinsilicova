@@ -9,7 +9,7 @@ This module contains the class for the InSilicoVA algorithm.
 
 from insilicova.exceptions import InSilicoVAException
 from dataclasses import dataclass
-from typing import Union
+from typing import Union, List
 from vacheck.datacheck5 import datacheck5
 import warnings
 import os
@@ -331,17 +331,10 @@ class InSilicoVA:
         if isinstance(self.subpop, (pd.DataFrame, pd.Series)):
             self.subpop.drop(drop_rows, axis=0, inplace=True)
 
-    def _remove_bad5(self,
-                    is_numeric: bool,
-                    subpop: Union[str, list[str], pd.Series]) -> None:
+    def _remove_bad5(self, is_numeric: bool) -> None:
         """Function to remove data with no sex/age indicators
 
         :param is_numeric: Indicator if the input is already in numeric format.
         :type is_numeric: bool
-        :param subpop: Either column name(s) (in va_data) of the variable(s)
-        or a vector that identify the subpopulations for stratified cause
-        assignment.  The vector could be numerical indicator or
-        characters/names.
-        :type subpop: str, list of stings, or pandas.Series
         """
         pass

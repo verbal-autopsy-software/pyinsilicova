@@ -15,6 +15,7 @@ import warnings
 import os
 import pandas as pd
 import numpy as np
+from collections import defaultdict
 
 
 class InSilicoVA:
@@ -97,7 +98,7 @@ class InSilicoVA:
         self.no_is_missing = no_is_missing
         self.indiv_ci = indiv_ci
         self.groupcode = groupcode
-        self.error_log = {}
+        self.error_log = defaultdict(list)
 
         self.original_data = data.copy()
         if isinstance(subpop, str):
@@ -300,41 +301,49 @@ class InSilicoVA:
 
         return prob_random
 
-    def _remove_bad(self, is_numeric: bool) -> None:
+    def _remove_bad(self,
+                    is_numeric: bool,
+                    version5: bool = True) -> None:
         """Function to remove data with no sex/age indicators
 
         :param is_numeric: Indicator if the input is already in numeric format.
         :type is_numeric: bool
+        :param version5: Indicator for InterVA5 input (vs. InterVA4)
+        :type version5: bool
         """
         if not is_numeric:
             data_num = np.zeros(self.data.shape)
-            data_num[self.data == "Y"] = 1
+            data_num[self.data.isin(["Y", "y"])] = 1
         else:
             data_num = self.data.copy()
         drop_rows = set()
 
+        if version5:
+            age_cols = range(5, 12)
+            sex_cols = range(3, 5)
+            ind_cols = range(20, 328)
+        else:
+            age_cols = range(1, 8)
+            sex_cols = range(8, 10)
+            ind_cols = range(22, 223)
+
         for i in range(self.data.shape[0]):
-            if sum(data_num[i, 1:8]) < 1:
+            if sum(data_num[i, age_cols]) < 1:
                 drop_rows.add(i)
                 tmp_id = self.data.iat[i, 0]
-                self.error_log[tmp_id] = "Error in age indicator: not specified"
-            if sum(data_num[i, 8:10]) < 1:
+                self.error_log[tmp_id].append(
+                    "Error in age indicator: not specified")
+            if sum(data_num[i, sex_cols]) < 1:
                 drop_rows.add(i)
                 tmp_id = self.data.iat[i, 0]
-                self.error_log[tmp_id] = "Error in sex indicator: not specified"
-            if sum(data_num[i, 22:223]) < 1:
+                self.error_log[tmp_id].append(
+                    "Error in sex indicator: not specified")
+            if sum(data_num[i, ind_cols]) < 1:
                 drop_rows.add(i)
                 tmp_id = self.data.iat[i, 0]
-                self.error_log[tmp_id] = "Error in indicators: no symptoms specified"
+                self.error_log[tmp_id].append(
+                    "Error in indicators: no symptoms specified")
         drop_rows = list(drop_rows)
         self.data.drop(drop_rows, axis=0, inplace=True)
         if isinstance(self.subpop, (pd.DataFrame, pd.Series)):
             self.subpop.drop(drop_rows, axis=0, inplace=True)
-
-    def _remove_bad5(self, is_numeric: bool) -> None:
-        """Function to remove data with no sex/age indicators
-
-        :param is_numeric: Indicator if the input is already in numeric format.
-        :type is_numeric: bool
-        """
-        pass

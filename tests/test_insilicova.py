@@ -116,16 +116,16 @@ class TestRemoveBad:
                "under5", "infant", "neonate"]
     df_age.loc[age_ind, age_col] = "N"
     ins_bad_age = InSilicoVA(df_age)
-    bad_age_id = set(df_age['ID'])
-    ins_bad_age._remove_bad(is_numeric=False)
+    bad_age_id = set(df_age["ID"])
+    ins_bad_age._remove_bad(is_numeric=False, version5=False)
 
     n_bad_sex = 10
     df_sex = va_data1.copy()
     sex_ind = df_sex.index[0:n_bad_sex]
     df_sex.loc[sex_ind, ["male", "female"]] = "N"
     ins_bad_sex = InSilicoVA(df_sex)
-    bad_sex_id = set(df_sex['ID'][0:n_bad_sex])
-    ins_bad_sex._remove_bad(is_numeric=False)
+    bad_sex_id = set(df_sex["ID"][0:n_bad_sex])
+    ins_bad_sex._remove_bad(is_numeric=False, version5=False)
 
     n_bad_all = 15
     df_all = va_data1.copy()
@@ -136,8 +136,8 @@ class TestRemoveBad:
     keep_col = list(set(data_col) - set(remove_col))
     df_all.loc[all_ind, keep_col] = "N"
     ins_bad_all = InSilicoVA(df_all)
-    bad_all_id = set(df_all['ID'])
-    ins_bad_all._remove_bad(is_numeric=False)
+    bad_all_id = set(df_all["ID"])
+    ins_bad_all._remove_bad(is_numeric=False, version5=False)
 
     def test_remove_bad_age(self):
         old_n = self.ins_bad_age.original_data.shape[0]
@@ -150,7 +150,7 @@ class TestRemoveBad:
         err_id = err_ids.pop()
         err_msg = "Error in age indicator: not specified"
         assert err_ids.issubset(self.bad_age_id)
-        assert self.ins_bad_age.error_log[err_id] == err_msg
+        assert self.ins_bad_age.error_log[err_id] == [err_msg]
 
     def test_remove_bad_sex(self):
         old_n = self.ins_bad_sex.original_data.shape[0]
@@ -163,7 +163,7 @@ class TestRemoveBad:
         err_id = err_ids.pop()
         err_msg = "Error in sex indicator: not specified"
         assert err_ids.issubset(self.bad_sex_id)
-        assert self.ins_bad_sex.error_log[err_id] == err_msg
+        assert self.ins_bad_sex.error_log[err_id] == [err_msg]
 
     def test_remove_bad_all(self):
         old_n = self.ins_bad_all.original_data.shape[0]
@@ -175,5 +175,77 @@ class TestRemoveBad:
         err_ids = set(self.ins_bad_all.error_log.keys())
         err_id = err_ids.pop()
         err_msg = "Error in indicators: no symptoms specified"
+        assert err_ids.issubset(self.bad_all_id)
+        assert self.ins_bad_all.error_log[err_id] == [err_msg]
+
+
+class TestRemoveBadV5:
+
+    n_bad_age = 5
+    df_age = va_data.copy()
+    age_ind = df_age.index[0:n_bad_age]
+
+    age_col = ["i022" + x for x in ["a", "b", "c", "d", "e", "f", "g"]]
+    df_age.loc[age_ind, age_col] = "N"
+    ins_bad_age = InSilicoVA(df_age)
+    bad_age_id = set(df_age["ID"])
+    ins_bad_age._remove_bad(is_numeric=False)
+
+    n_bad_sex = 10
+    df_sex = va_data.copy()
+    sex_ind = df_sex.index[0:n_bad_sex]
+    df_sex.loc[sex_ind, ["i019a", "i019b"]] = "N"
+    ins_bad_sex = InSilicoVA(df_sex)
+    bad_sex_id = set(df_sex["ID"][0:n_bad_sex])
+    ins_bad_sex._remove_bad(is_numeric=False)
+
+    n_bad_all = 15
+    df_all = va_data.copy()
+    all_ind = df_all.index[0:n_bad_all]
+    data_col = list(va_data)
+    remove_col = age_col.copy()
+    remove_col.extend(["ID", "i019a", "i019b"])
+    keep_col = list(set(data_col) - set(remove_col))
+    df_all.loc[all_ind, keep_col] = "N"
+    ins_bad_all = InSilicoVA(df_all)
+    bad_all_id = set(df_all["ID"])
+    ins_bad_all._remove_bad(is_numeric=False)
+
+    def test_remove_bad_age(self):
+        old_n = self.ins_bad_age.original_data.shape[0]
+        new_n = self.ins_bad_age.data.shape[0]
+        # assumes randomva1 has no missing age values
+        assert new_n == (old_n - self.n_bad_age)
+
+    def test_err_bad_age(self):
+        err_ids = set(self.ins_bad_age.error_log.keys())
+        err_id = err_ids.pop()
+        err_msg = ["Error in age indicator: not specified"]
+        assert err_ids.issubset(self.bad_age_id)
+        assert self.ins_bad_age.error_log[err_id] == err_msg
+
+    def test_remove_bad_sex(self):
+        old_n = self.ins_bad_sex.original_data.shape[0]
+        new_n = self.ins_bad_sex.data.shape[0]
+        # assumes randomva1 has no missing sex values
+        assert new_n == (old_n - self.n_bad_sex)
+
+    def test_err_bad_sex(self):
+        err_ids = set(self.ins_bad_sex.error_log.keys())
+        err_id = err_ids.pop()
+        err_msg = ["Error in sex indicator: not specified"]
+        assert err_ids.issubset(self.bad_sex_id)
+        assert self.ins_bad_sex.error_log[err_id] == err_msg
+
+    def test_remove_bad_all(self):
+        old_n = self.ins_bad_all.original_data.shape[0]
+        new_n = self.ins_bad_all.data.shape[0]
+        # assumes randomva1 has no deaths with all missing (except age & sex)
+        assert new_n == (old_n - self.n_bad_all)
+
+    def test_err_bad_all(self):
+        err_ids = set(self.ins_bad_all.error_log.keys())
+        err_id = err_ids.pop()
+        err_msg = ["Error in indicators: no symptoms specified"]
         assert err_ids.issubset(self.bad_all_id)
         assert self.ins_bad_all.error_log[err_id] == err_msg

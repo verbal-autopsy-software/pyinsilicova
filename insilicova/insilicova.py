@@ -99,6 +99,7 @@ class InSilicoVA:
         self.indiv_ci = indiv_ci
         self.groupcode = groupcode
         self.error_log = defaultdict(list)
+        self.vacheck_log = {"first_pass": [], "second_pass": []}
 
         self.original_data = data.copy()
         if isinstance(subpop, str):
@@ -347,3 +348,23 @@ class InSilicoVA:
         self.data.drop(drop_rows, axis=0, inplace=True)
         if isinstance(self.subpop, (pd.DataFrame, pd.Series)):
             self.subpop.drop(drop_rows, axis=0, inplace=True)
+
+    def _datacheck(self):
+        """Run InterVA5 data checks on input and store log in vacheck_log. """
+        # TODO: might need to allow this function to accept PYQT5 object for
+        # updating a progress bar
+        checked_input = np.zeros(self.data.shape)
+        checked_input[self.data.isin(["Y", "y"])] = 1
+        checked_input[self.data.isin(["Y", "y", "N", "n"]) is False] = np.nan
+        checked_input = pd.DataFrame(checked_input, columns=self.data.columns)
+        checked_input["ID"] = self.data["ID"].copy()
+        checked_list = []
+
+        for i in checked_input.shape[0]:
+            checked_results = datacheck5(va_input=checked_input.iloc[i],
+                                         va_id=checked_input.at[i, "ID"],
+                                         insilico_check=True)
+            self.vacheck_log["first_pass"].extend(checked_results["first_pass"])
+            self.vacheck_log["second_pass"].extend(checked_results["second_pass"])
+            pd.concat(checked_output.concat
+

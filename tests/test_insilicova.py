@@ -249,3 +249,8 @@ class TestRemoveBadV5:
         err_msg = ["Error in indicators: no symptoms specified"]
         assert err_ids.issubset(self.bad_all_id)
         assert self.ins_bad_all.error_log[err_id] == err_msg
+
+
+def test_datacheck5():
+    default._datacheck()
+    assert default.vacheck_log is not None

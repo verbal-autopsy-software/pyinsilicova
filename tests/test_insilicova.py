@@ -11,6 +11,7 @@ from insilicova.utils import get_vadata
 va_data = get_vadata("randomva5", verbose=False)
 default = InSilicoVA(va_data)
 probbase5 = get_vadata("probbase5", verbose=False)
+probbase5 = probbase5.iloc[1:, :]
 va_data1 = get_vadata("randomva1", verbose=False)
 default1 = InSilicoVA(va_data1)
 
@@ -253,4 +254,33 @@ class TestRemoveBadV5:
 
 def test_datacheck5():
     default._datacheck()
-    assert default.vacheck_log is not None
+    assert len(default.vacheck_log["first_pass"]) > 0
+    assert len(default.vacheck_log["second_pass"]) > 0
+
+
+def test_remove_ext():
+
+    orig_shape = default.data.shape
+    n_external = 19
+
+    prob_orig = probbase5.iloc[1:, 20:81].to_numpy(copy=True)
+    subst = probbase5.iloc[1:, 5].to_numpy(copy=True)
+    csmf_orig = probbase5.iloc[0, 20:]
+    ext_causes = np.arange(49, 60)
+    ext_symptoms = np.arange(19, 38)
+    is_numeric = True
+    subpop = va_data["i019a"].astype("string", copy=True)
+    subpop_order_list = np.sort(subpop.unique())
+    negate = (subst == "N")
+
+    ext_col = default.data.iloc[:, 1:].columns[ext_symptoms]
+    default.data.loc[:, ext_col] = 0
+    default.data.loc[default.data.index[0:n_external], ext_col[0]] = 1
+    default._remove_ext(csmf_orig, is_numeric, ext_causes, ext_symptoms)
+    # TODO: make this a class then each assert is a method
+    assert default.data.shape[0] == (orig_shape[0] - n_external)
+    assert default.ext_id.shape[0] == n_external
+    assert default.ext_sub.shape[0] == n_external
+    assert default.ext_csmf is not None
+    assert default.negate.shape[0] == orig_shape[0] - ext_symptoms.shape[0]
+    assert default.data.shape[1] == orig_shape[1] - ext_symptoms.shape[0]

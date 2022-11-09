@@ -8,7 +8,7 @@ This module contains the class for the InSilicoVA algorithm.
 """
 
 from insilicova.exceptions import InSilicoVAException
-from dataclasses import dataclass
+from insilicova.utils import get_vadata
 from typing import Union, List
 from vacheck.datacheck5 import datacheck5
 import warnings
@@ -108,7 +108,17 @@ class InSilicoVA:
             self.original_subpop = subpop.copy()
         else:
             self.original_subpop = None
+        # initialize probbase
+        self.prob_orig = None
+        # attributes for external causes
+        self.ext_sub = None
+        self.ext_id = None
+        self.ext_cod = None
+        self.ext_csmf = None
+        self.negate = None
+
         self._check_args()
+        self._setup_sci()
 
     def _check_args(self):
         if not self.datacheck and self.data_type == "WHO2016":
@@ -125,6 +135,13 @@ class InSilicoVA:
             except (PermissionError, OSError) as exc:
                 raise InSilicoVAException(
                     f"InSilicoVA unable to create {self.directory}:\n{exc}")
+
+    def _setup_sci(self):
+        """Initialize probbase."""
+        if self.sci is None:
+            self.probbase = get_vadata("probbase5", verbose=False)
+            self.prob_orig = self.probbase.iloc[1:, 20:81].to_numpy(copy=True)
+            self.negate = np.array([False]*self.prob_orig.shape[0])
 
     @staticmethod
     def _interva_table(
@@ -352,19 +369,64 @@ class InSilicoVA:
     def _datacheck(self):
         """Run InterVA5 data checks on input and store log in vacheck_log. """
         # TODO: might need to allow this function to accept PYQT5 object for
-        # updating a progress bar
+        #       updating a GUI progress bar
         checked_input = np.zeros(self.data.shape)
         checked_input[self.data.isin(["Y", "y"])] = 1
-        checked_input[self.data.isin(["Y", "y", "N", "n"]) is False] = np.nan
+        checked_input[~self.data.isin(["Y", "y", "N", "n"])] = np.nan
         checked_input = pd.DataFrame(checked_input, columns=self.data.columns)
         checked_input["ID"] = self.data["ID"].copy()
         checked_list = []
 
-        for i in checked_input.shape[0]:
+        for i in range(checked_input.shape[0]):
             checked_results = datacheck5(va_input=checked_input.iloc[i],
                                          va_id=checked_input.at[i, "ID"],
                                          insilico_check=True)
-            self.vacheck_log["first_pass"].extend(checked_results["first_pass"])
-            self.vacheck_log["second_pass"].extend(checked_results["second_pass"])
-            pd.concat(checked_output.concat
+            self.vacheck_log["first_pass"].extend(
+                checked_results["first_pass"])
+            self.vacheck_log["second_pass"].extend(
+                checked_results["second_pass"])
+            checked_list.append(checked_results["output"])
+        self.data = pd.DataFrame(checked_list)
+
+    def _remove_ext(self,
+                    csmf_orig,
+                    is_numeric,
+                    external_causes,
+                    external_symps):
+        """
+        Method to remove external causes/symptoms and assign deterministic
+        causes.
+
+        :param csmf_orig: probbase prior
+        :type csmf_orig: list or numpy.ndarray (vector)
+        :param is_numeric: Indicator for if data are numeric
+        :type is_numeric: bool
+        :param external_causes: indicator of elements that are external causes
+        :type external_causes: list/numpy.ndarray (vector)
+        :param external_symps: indicator for data columns with external symptoms
+        :type external_symps: list/numpy.ndarray (vector)
+        """
+        n_all = self.data.shape[0]
+        ext_data = self.data.iloc[:, external_symps + 1].copy()
+        if is_numeric:
+            neg = 0
+            pos = 1
+        else:
+            neg = "N"
+            pos = "Y"
+        ext_where = (ext_data == pos).any(axis=1)
+        ext_data = ext_data.loc[ext_where, :]
+        self.ext_id = self.data.loc[ext_where, "ID"].copy()
+        self.ext_sub = self.subpop.loc[ext_where].copy()
+        prob_sub = self._change_inter(
+            self.prob_orig[np.ix_(external_symps, external_causes)])
+        csmf_sub = self._change_inter(
+            csmf_orig[external_causes])
+        self.prob_orig = np.delete(self.prob_orig, external_symps, axis=0)
+        self.prob_orig = np.delete(self.prob_orig, external_causes, axis=1)
+        self.negate = np.delete(self.negate, external_symps)
+        if external_symps.shape[0] > 0:
+            self.data.drop(
+                self.data.columns[external_symps + 1], axis=1, inplace=True
+            )
 

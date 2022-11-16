@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-vacheck = {version="*"}
+vacheck = {version=">=0.0.2"}
 interva = {version="*"}
 pandas = {version="*"}
 numpy = {version="*"}

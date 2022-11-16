@@ -17,6 +17,8 @@ from insilicova.exceptions import InSilicoVAException
 
 DATA_DICT = {"causetext": ("Translation of cause-of-death abbreviation codes"
                            " into their full names"),
+             "causetextV5": ("Translation of cause-of-death abbreviation codes"
+                             " into their full names (used by InterVA5)"),
              "condprob": ("Conditional probability matrix used by InterVA4-2."
                           "  There are 60 causes and 245 symptoms"),
              "condprobnum": ("Condition probability matrix used by InterVA4-2"
@@ -24,10 +26,10 @@ DATA_DICT = {"causetext": ("Translation of cause-of-death abbreviation codes"
              "probbase": ("Conditional probabilities of symptoms given the "
                           "cause of death with the data check rules. "
                           "The values are from InterVA4-2."),
-             "probbase3": ("Conditional probabilities of symptoms given the "
+             "probbaseV3": ("Conditional probabilities of symptoms given the "
                            "cause of death.  The values are from "
                            "InterVA-4.03."),
-             "probbase5": ("Conditional probabilities of symptoms given the "
+             "probbaseV5": ("Conditional probabilities of symptoms given the "
                            "cause of death.  The values are from "
                            "InterVA-5."),
              "random_physician": ("randomva2 data with additional columns "

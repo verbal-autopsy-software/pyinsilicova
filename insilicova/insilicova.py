@@ -7,7 +7,7 @@ insilicova.insilicova
 This module contains the class for the InSilicoVA algorithm.
 """
 
-from insilicova.exceptions import InSilicoVAException
+from insilicova.exceptions import ArgumentException, DataException
 from insilicova.utils import get_vadata
 from typing import Union, List
 from vacheck.datacheck5 import datacheck5
@@ -48,7 +48,7 @@ class InSilicoVA:
                  levels_strength: int = 1,
                  trunc_min: float = 0.0001,
                  trunc_max: float = 0.9999,
-                 subpop: Union[None, list, str, pd.DataFrame] = None,
+                 subpop: Union[None, list, str, pd.Series] = None,
                  java_option: str = "-Xmx1g",
                  seed: int = 1,
                  phy_code: Union[None, pd.DataFrame] = None,
@@ -100,6 +100,8 @@ class InSilicoVA:
         self.groupcode = groupcode
         self.error_log = defaultdict(list)
         self.vacheck_log = {"first_pass": [], "second_pass": []}
+        self.causetext = None
+        self.probbase = None
 
         self.original_data = data.copy()
         if isinstance(subpop, str):
@@ -108,6 +110,7 @@ class InSilicoVA:
             self.original_subpop = subpop.copy()
         else:
             self.original_subpop = None
+        self.subpop_order_list = None
         # initialize probbase
         self.prob_orig = None
         # attributes for external causes
@@ -115,12 +118,49 @@ class InSilicoVA:
         self.ext_id = None
         self.ext_cod = None
         self.ext_csmf = None
+        self.ext_prob = None
         self.negate = None
+        # attributes for future use? (unused in R code)
+        # self.probbase_by_symp_dev
+        self.method = "normal"
+        self.alpha_scale = None
+        # self.n_level_dev = None
+        # if self.n_level_dev is not None:
+        #     self.n_level = self.n_level_dev
+        self.n_level = 15
 
+        self._change_data_coding()
         self._check_args()
-        self._setup_sci()
+        self._initialize_data_dependencies()
+        self._setup_subpop()
+
+    def _change_data_coding(self):
+        if self.data_type == "WHO2016":
+            col_names = list(self.data)[1:]  # ignore ID
+            for i in col_names:
+                self.data[i] = self.data[i].astype("string")
+                if self.subpop is not None and i in self.subpop:
+                    continue
+                self.data[i].fillna(".", inplace=True)
+                if "" in self.data[i].values:
+                    raise DataException(
+                        "Wrong format: WHO 2016 input uses 'N' to denote "
+                        "absence instead of ''.  Please change your coding"
+                        "first."
+                    )
+                nomiss_tmp = self.data[i].isin(["Y", "y", "N", "n"]).copy()
+                self.data.loc[~nomiss_tmp, i] = "."
+        if self.no_is_missing:
+            self.data.replace("", ".", inplace=True)
 
     def _check_args(self):
+        # column names converted to lowercase on instantiation
+        if self.data_type == "WHO2016" and "i183o" in list(self.data):
+            warnings.warn("Due to the inconsistent names in the early version "
+                          "of InterVA5, the indicator 'i183o' has been " 
+                          "renamed as 'i183a'.")
+            self.data.rename(columns={"i183o": "i183a"}, inplace=True)
+
         if not self.datacheck and self.data_type == "WHO2016":
             warnings.warn("Data check is turned off. Please be very careful "
                           "with this, because some indicators needs to be " 
@@ -133,15 +173,64 @@ class InSilicoVA:
             try:
                 os.makedirs(self.directory, exist_ok=True)
             except (PermissionError, OSError) as exc:
-                raise InSilicoVAException(
+                raise ArgumentException(
                     f"InSilicoVA unable to create {self.directory}:\n{exc}")
+        if self.jump_scale is None:
+            raise ArgumentException("No jump scale provided for Normal prior")
+        if None in [self.n_sim, self.thin, self.burnin]:
+            raise ArgumentException(
+                "Length of chain/thinning/burn-in not specified")
+        # Not tested yet
+        # if self.keep_probbase_level and self.probbase_by_symp_dev:
+        #     raise ArgumentException(
+        #         "")
 
-    def _setup_sci(self):
-        """Initialize probbase."""
-        if self.sci is None:
-            self.probbase = get_vadata("probbase5", verbose=False)
-            self.prob_orig = self.probbase.iloc[1:, 20:81].to_numpy(copy=True)
-            self.negate = np.array([False]*self.prob_orig.shape[0])
+    def _initialize_data_dependencies(self):
+        """Set up probbase SCI and cause list. """
+        if self.data_type == "WHO2012":
+            self.probbase = get_vadata("probbaseV3", verbose=False)
+            self.probbase.replace({"sk_les": "skin_les"}, inplace=True)
+            self.causetext = get_vadata("causetext", verbose=False)
+        elif self.data_type == "WHO2016":
+            if self.sci is None:
+                self.probbase = get_vadata("probbaseV5", verbose=False)
+                probbase_version = self.probbase.iat[0, 2]
+                print(f"Using Probbase version: {probbase_version}\n")
+            else:
+                if self.sci.shape != (354, 87) or not isinstance(self.sci, pd.DataFrame):
+                    raise ArgumentException(
+                        "Error: invalid sci (must be data frame with "
+                        "354 rows and 87 columns.\n")
+                self.probbase = self.sci.copy()
+            self.causetext = get_vadata("causetextV5", verbose=False)
+
+        self.probbase.fillna(".", inplace=True)
+        self.probbase = self.probbase.to_numpy(dtype=str)
+        self.prob_orig = self.probbase[1:, 20:81].copy()
+        self.negate = np.array([False] * self.prob_orig.shape[0])
+        if self.groupcode:
+            self.causetext.drop(columns=list(self.causetext)[1], inplace=True)
+        else:
+            self.causetext.drop(columns=list(self.causetext)[2], inplace=True)
+
+    def _setup_subpop(self):
+        """Set subpop attribute."""
+        if isinstance(self.subpop, pd.Series):
+            self.subpop.fillna("missing", inplace=True)
+            self.subpop = self.subpop.astype("string")
+        elif isinstance(self.subpop, (str, list)):
+            try:
+                self.subpop = self.data[self.original_subpop].copy()
+            except KeyError as exc:
+                raise ArgumentException(
+                    f"Error: invalid subpop name specification:\n{exc}")
+            self.subpop.fillna("missing", inplace=True)
+            self.subpop = self.subpop.astype("string")
+            if self.subpop.ndim > 1:
+                self.subpop = self.subpop.apply(
+                    lambda x: "_".join(x.to_list()),
+                    axis=1
+                )
 
     @staticmethod
     def _interva_table(
@@ -164,7 +253,7 @@ class InSilicoVA:
 
         if standard:
             if min_level is None:
-                raise InSilicoVAException(
+                raise ArgumentException(
                     "Minimum level (min_level) not specified")
             tab_min = np.array([1, 0.8, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005,
                                 0.002, 0.001, 0.0005, 0.0001, 0.00001,
@@ -172,7 +261,7 @@ class InSilicoVA:
             return tab_min
         else:
             if table_num_dev is None:
-                raise InSilicoVAException(
+                raise ArgumentException(
                     "Numerical level table (table_num_dev) not specified")
             new_tab = table_num_dev.copy()
             new_tab = new_tab[::-1]
@@ -201,7 +290,7 @@ class InSilicoVA:
         """
         dist = self._interva_table(standard=True, min_level=0.000001)
         if len(dist) != len(dist):
-            raise InSilicoVAException(
+            raise ArgumentException(
                 "Dimension of probbase prior is incorrect.")
         out_vector = dist[vector.argsort()]
         if scale:
@@ -239,7 +328,7 @@ class InSilicoVA:
                                           min_level=0)
         if table_dev:
             if len(table_dev) != len(table_num_dev):
-                raise InSilicoVAException(
+                raise ArgumentException(
                     "table_dev and table_num_dev have different lengths"
                 )
             for i in range(len(table_dev)):
@@ -279,7 +368,7 @@ class InSilicoVA:
         """Randomly initialize probbase from order matrix.
 
         :param probbase_order: order matrix
-        :type probbase_order: numpy.ndarrary
+        :type probbase_order: numpy.ndarray
         :param exp_ini: initialize to exponential of uniform
         :type exp_ini: bool
         :param inter_ini: initialize to InterVA probbase values
@@ -376,10 +465,12 @@ class InSilicoVA:
         checked_input = pd.DataFrame(checked_input, columns=self.data.columns)
         checked_input["ID"] = self.data["ID"].copy()
         checked_list = []
+        pb = self.probbase.copy()
 
         for i in range(checked_input.shape[0]):
             checked_results = datacheck5(va_input=checked_input.iloc[i],
                                          va_id=checked_input.at[i, "ID"],
+                                         probbase=pb,
                                          insilico_check=True)
             self.vacheck_log["first_pass"].extend(
                 checked_results["first_pass"])
@@ -429,4 +520,21 @@ class InSilicoVA:
             self.data.drop(
                 self.data.columns[external_symps + 1], axis=1, inplace=True
             )
+        if ext_where.sum() > 0:
+            n_row = ext_data.shape[0]
+            n_col = external_causes.shape[0]
+            probs = np.ones((n_row, n_col))
+            for i in range(n_row):
+                for j in range(n_col):
+                    symp_pos = ext_data.iloc[i] == pos
+                    probs[i, j] = csmf_sub[j] * (prob_sub[symp_pos, j].prod())
+                probs[i, :] = probs[i, :]/probs[i, :].sum()
+            self.ext_prob = probs
+            self.data = self.data[~ext_where]
+        else:
+            if self.subpop is not None:
+                self.ext_csmf = []
+                for i in range(4):
+                    pass
+
 

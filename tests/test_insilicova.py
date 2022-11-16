@@ -1,24 +1,64 @@
 # -*- coding: utf-8 -*-
+
 import pandas as pd
 import pytest
 import numpy as np
 import os
 import sys
 from insilicova.insilicova import InSilicoVA
-from insilicova.exceptions import InSilicoVAException
+from insilicova.exceptions import ArgumentException, DataException
 from insilicova.utils import get_vadata
 
 va_data = get_vadata("randomva5", verbose=False)
-default = InSilicoVA(va_data)
-probbase5 = get_vadata("probbase5", verbose=False)
-probbase5 = probbase5.iloc[1:, :]
+default = InSilicoVA(va_data, subpop=["i019a"])
 va_data1 = get_vadata("randomva1", verbose=False)
 default1 = InSilicoVA(va_data1)
+probbase3 = get_vadata("probbaseV3", verbose=False)
+probbase5 = get_vadata("probbaseV5", verbose=False)
+causetext = get_vadata("causetext")
+causetext5 = get_vadata("causetextV5")
+
+
+class TestChangeDataCoding:
+    tmp_data1 = va_data.copy()
+    tmp_data1.iloc[0:10, 1] = "maybe"
+    spop = "i019a"
+    tmp_data1[spop].replace(".", np.NaN, inplace=True)
+    tmp_out1 = InSilicoVA(tmp_data1, subpop=spop)
+    tmp_data_exc = va_data.copy()
+    tmp_data_exc.iloc[1, 0:10] = ""
+
+    def test_change_values(self):
+        assert all(self.tmp_out1.data.iloc[0:10, 1] == ".")
+
+    def test_subpop(self):
+        assert any(self.tmp_out1.data[self.spop].isna())
+
+    def test_blank_exception(self):
+        with pytest.raises(DataException):
+            InSilicoVA(data=self.tmp_data_exc)
 
 
 def test_data_type_warning():
     with pytest.warns(UserWarning):
         InSilicoVA(data=va_data, data_type="WHO2016", datacheck=False)
+
+
+def test_null_jump_scale():
+    with pytest.raises(ArgumentException):
+        InSilicoVA(data=va_data, jump_scale=None)
+
+
+def test_null_chain_etc():
+    with pytest.raises(ArgumentException):
+        InSilicoVA(data=va_data, n_sim=None, thin=None, burnin=None)
+
+
+# def test_probbase_by_symp_exc():
+#     with pytest.raises(ArgumentException):
+#         InSilicoVA(data=va_data,
+#                    keep_probbase_level=True,
+#                    probbase_by_symp_dev=True)
 
 
 @pytest.mark.skip("A reminder to update this test when fnc is created")
@@ -33,8 +73,69 @@ def test_warning_write(tmp_path):
 @pytest.mark.xfail(sys.platform == "win32",
                    reason="doesn't trigger windows permission error")
 def test_warning_write_exception():
-    with pytest.raises(InSilicoVAException):
+    with pytest.raises(ArgumentException):
         InSilicoVA(data=va_data, warning_write=True, directory="/bad/path")
+
+
+def test_va_data_has_col_i183o():
+    tmp_data = va_data.rename(columns={"i183a": "i183o"}).copy()
+    out = InSilicoVA(data=tmp_data)
+    assert "i183o" in list(tmp_data)
+    assert "i183a" in list(out.data)
+
+
+def test_arg_probbase_who2012():
+    out = InSilicoVA(data=va_data, data_type="WHO2012", groupcode=False)
+    assert isinstance(out.probbase, np.ndarray)
+    assert out.probbase.shape == probbase3.shape
+    assert all(out.causetext.fillna(".").iloc[:, 0] == causetext.fillna(".").iloc[:, 0])
+    assert all(out.causetext.fillna(".").iloc[:, 1] == causetext.fillna(".").iloc[:, 1])
+
+
+def test_arg_probbase_who2016():
+    out = InSilicoVA(data=va_data, data_type="WHO2016", groupcode=False)
+    assert isinstance(out.probbase, np.ndarray)
+    assert out.probbase.shape == probbase5.shape
+    assert out.probbase.dtype.type is np.str_
+    assert all(out.causetext.iloc[:, 0] == causetext5.iloc[:, 0])
+    assert all(out.causetext.iloc[:, 1] == causetext5.iloc[:, 1])
+
+
+def test_arg_probbase_custom():
+    tmp_pb = probbase5.copy()
+    version = "new probbase"
+    tmp_pb.iloc[0, 2] = version
+    out = InSilicoVA(data=va_data, sci=tmp_pb)
+    assert out.probbase[0, 2] == version
+
+
+def test_arg_probbase_custom_exc():
+    sci = pd.DataFrame(np.random.rand(10, 10))
+    with pytest.raises(ArgumentException):
+        InSilicoVA(data=va_data, sci=sci)
+
+
+def test_arg_groupcode_true():
+    out = InSilicoVA(data=va_data, groupcode=True)
+    assert all(out.causetext.iloc[:, 1] == causetext5.iloc[:, 2])
+
+
+def test_arg_groupcode_2012_true():
+    out = InSilicoVA(data=va_data, data_type="WHO2012", groupcode=True)
+    assert all(out.causetext.fillna(".").iloc[:, 1] == causetext.fillna(".").iloc[:, 2])
+
+
+def test_subpop_exception():
+    with pytest.raises(ArgumentException):
+        InSilicoVA(data=va_data, subpop=["not_a_column"])
+
+
+def test_subpop_setup():
+    subpop_out = InSilicoVA(va_data,
+                            subpop=["i004a", "i019a", "i022a"])
+    assert subpop_out.subpop.ndim == 1
+    assert subpop_out.subpop.shape[0] == subpop_out.data.shape[0]
+    assert isinstance(subpop_out.subpop, pd.Series)
 
 
 class TestInterVATable:
@@ -60,11 +161,11 @@ class TestInterVATable:
         np.testing.assert_array_equal(new_answer, new_interva_table)
 
     def test_interva_table_exception_min_level(self):
-        with pytest.raises(InSilicoVAException):
+        with pytest.raises(ArgumentException):
             self.results._interva_table(standard=True)
 
     def test_interva_table_exception_table_num_dev(self):
-        with pytest.raises(InSilicoVAException):
+        with pytest.raises(ArgumentException):
             self.results._interva_table(standard=False)
 
 
@@ -258,29 +359,37 @@ def test_datacheck5():
     assert len(default.vacheck_log["second_pass"]) > 0
 
 
-def test_remove_ext():
-
-    orig_shape = default.data.shape
-    n_external = 19
-
-    prob_orig = probbase5.iloc[1:, 20:81].to_numpy(copy=True)
-    subst = probbase5.iloc[1:, 5].to_numpy(copy=True)
-    csmf_orig = probbase5.iloc[0, 20:]
-    ext_causes = np.arange(49, 60)
-    ext_symptoms = np.arange(19, 38)
-    is_numeric = True
-    subpop = va_data["i019a"].astype("string", copy=True)
-    subpop_order_list = np.sort(subpop.unique())
-    negate = (subst == "N")
-
-    ext_col = default.data.iloc[:, 1:].columns[ext_symptoms]
-    default.data.loc[:, ext_col] = 0
-    default.data.loc[default.data.index[0:n_external], ext_col[0]] = 1
-    default._remove_ext(csmf_orig, is_numeric, ext_causes, ext_symptoms)
-    # TODO: make this a class then each assert is a method
-    assert default.data.shape[0] == (orig_shape[0] - n_external)
-    assert default.ext_id.shape[0] == n_external
-    assert default.ext_sub.shape[0] == n_external
-    assert default.ext_csmf is not None
-    assert default.negate.shape[0] == orig_shape[0] - ext_symptoms.shape[0]
-    assert default.data.shape[1] == orig_shape[1] - ext_symptoms.shape[0]
+# class TestRemoveExt:
+#
+#     orig_shape = default.data.shape
+#     n_external = 19
+#
+#     prob_orig = probbase5.iloc[1:, 20:81].to_numpy(copy=True)
+#     subst = probbase5.iloc[1:, 5].to_numpy(copy=True)
+#     csmf_orig = probbase5.iloc[0, 20:]
+#     ext_causes = np.arange(49, 60)
+#     ext_symptoms = np.arange(19, 38)
+#     is_numeric = True
+#     # subpop = va_data["i019a"].astype("string", copy=True)
+#     # subpop_order_list = np.sort(subpop.unique())
+#     # negate = (subst == "N")
+#
+#     ext_col = default.data.iloc[:, 1:].columns[ext_symptoms]
+#     default.data.loc[:, ext_col] = 0
+#     default.data.loc[default.data.index[0:n_external], ext_col[0]] = 1
+#     default._remove_ext(csmf_orig, is_numeric, ext_causes, ext_symptoms)
+#
+#     def test_data_shape(self):
+#         assert default.data.shape[0] == (self.orig_shape[0] - self.n_external)
+#
+#     def test_ext_id_shape(self):
+#         assert default.ext_id.shape[0] == self.n_external
+#
+#     def test_ext_sub_shape(self):
+#         assert default.ext_sub.shape[0] == self.n_external
+#
+#     def test_ext_csmf(self):
+#         assert default.ext_csmf is not None
+#
+#     def test_negate_shape(self):
+#         assert default.negate.shape[0] == (self.orig_shape[0] - self.ext_symptoms.shape[0])

@@ -12,11 +12,11 @@ from insilicova.utils import get_vadata
 va_data = get_vadata("randomva5", verbose=False)
 default = InSilicoVA(va_data, subpop=["i019a"])
 va_data1 = get_vadata("randomva1", verbose=False)
-default1 = InSilicoVA(va_data1)
+default1 = InSilicoVA(va_data1, data_type="WHO2012")
 probbase3 = get_vadata("probbaseV3", verbose=False)
 probbase5 = get_vadata("probbaseV5", verbose=False)
-causetext = get_vadata("causetext")
-causetext5 = get_vadata("causetextV5")
+causetext = get_vadata("causetext", verbose=False)
+causetext5 = get_vadata("causetextV5", verbose=False)
 
 
 class TestChangeDataCoding:
@@ -42,6 +42,11 @@ class TestChangeDataCoding:
 def test_data_type_warning():
     with pytest.warns(UserWarning):
         InSilicoVA(data=va_data, data_type="WHO2016", datacheck=False)
+
+
+def test_wrong_data_type():
+    with pytest.raises(ArgumentException):
+        InSilicoVA(data=va_data, data_type="2016WHO")
 
 
 def test_null_jump_scale():
@@ -79,13 +84,14 @@ def test_warning_write_exception():
 
 def test_va_data_has_col_i183o():
     tmp_data = va_data.rename(columns={"i183a": "i183o"}).copy()
-    out = InSilicoVA(data=tmp_data)
+    with pytest.warns(UserWarning):
+        out = InSilicoVA(data=tmp_data)
     assert "i183o" in list(tmp_data)
     assert "i183a" in list(out.data)
 
 
 def test_arg_probbase_who2012():
-    out = InSilicoVA(data=va_data, data_type="WHO2012", groupcode=False)
+    out = InSilicoVA(data=va_data1, data_type="WHO2012", groupcode=False)
     assert isinstance(out.probbase, np.ndarray)
     assert out.probbase.shape == probbase3.shape
     assert all(out.causetext.fillna(".").iloc[:, 0] == causetext.fillna(".").iloc[:, 0])
@@ -121,7 +127,7 @@ def test_arg_groupcode_true():
 
 
 def test_arg_groupcode_2012_true():
-    out = InSilicoVA(data=va_data, data_type="WHO2012", groupcode=True)
+    out = InSilicoVA(data=va_data1, data_type="WHO2012", groupcode=True)
     assert all(out.causetext.fillna(".").iloc[:, 1] == causetext.fillna(".").iloc[:, 2])
 
 
@@ -136,6 +142,47 @@ def test_subpop_setup():
     assert subpop_out.subpop.ndim == 1
     assert subpop_out.subpop.shape[0] == subpop_out.data.shape[0]
     assert isinstance(subpop_out.subpop, pd.Series)
+
+
+def test_subpop_setup_1_level():
+    tmp_data = va_data.copy()
+    tmp_data.iloc[:, 3] = "one"
+    with pytest.warns(UserWarning):
+        subpop_out = InSilicoVA(va_data,
+                                subpop=tmp_data.iloc[:, 3])
+    assert subpop_out.subpop is None
+
+
+def test_prep_data_error_2012():
+    tmp_data = va_data1.copy()
+    tmp_data.drop(columns=va_data1.columns[33], inplace=True)
+    with pytest.raises(DataException):
+        out = InSilicoVA(tmp_data, data_type="WHO2012")
+
+
+def test_prep_data_2012():
+    tmp_data = va_data1.copy()
+    tmp_data.columns = tmp_data.columns.str.upper()
+    tmp_data["new_col"] = "not a VA column"
+    out = InSilicoVA(tmp_data, data_type="WHO2012")
+    assert out.data.shape == va_data1.shape
+    assert all(out.data.columns == va_data1.columns)
+
+
+def test_prep_data_error_2016():
+    tmp_data = va_data.copy()
+    tmp_data.drop(columns=va_data.columns[33], inplace=True)
+    with pytest.raises(DataException):
+        out = InSilicoVA(tmp_data, data_type="WHO2016")
+
+
+def test_prep_data_2016():
+    tmp_data = va_data.copy()
+    tmp_data.columns = tmp_data.columns.str.upper()
+    tmp_data["new_col"] = "not a VA column"
+    out = InSilicoVA(tmp_data, data_type="WHO2016")
+    assert out.data.shape == va_data.shape
+    assert all(out.data.columns == va_data.columns)
 
 
 class TestInterVATable:
@@ -217,7 +264,7 @@ class TestRemoveBad:
     age_col = ["elder", "midage", "adult", "child",
                "under5", "infant", "neonate"]
     df_age.loc[age_ind, age_col] = "N"
-    ins_bad_age = InSilicoVA(df_age)
+    ins_bad_age = InSilicoVA(df_age, data_type="WHO2012")
     bad_age_id = set(df_age["ID"])
     ins_bad_age._remove_bad(is_numeric=False, version5=False)
 
@@ -225,7 +272,7 @@ class TestRemoveBad:
     df_sex = va_data1.copy()
     sex_ind = df_sex.index[0:n_bad_sex]
     df_sex.loc[sex_ind, ["male", "female"]] = "N"
-    ins_bad_sex = InSilicoVA(df_sex)
+    ins_bad_sex = InSilicoVA(df_sex, data_type="WHO2012")
     bad_sex_id = set(df_sex["ID"][0:n_bad_sex])
     ins_bad_sex._remove_bad(is_numeric=False, version5=False)
 
@@ -237,7 +284,7 @@ class TestRemoveBad:
     remove_col.extend(["ID", "male", "female"])
     keep_col = list(set(data_col) - set(remove_col))
     df_all.loc[all_ind, keep_col] = "N"
-    ins_bad_all = InSilicoVA(df_all)
+    ins_bad_all = InSilicoVA(df_all, data_type="WHO2012")
     bad_all_id = set(df_all["ID"])
     ins_bad_all._remove_bad(is_numeric=False, version5=False)
 

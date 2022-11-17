@@ -18,6 +18,9 @@ import numpy as np
 from collections import defaultdict
 
 
+VALID_DATA_TYPES = ("WHO2016", "WHO2012")
+
+
 class InSilicoVA:
     """
     Implementation of InSilicoVA algorithm.
@@ -62,6 +65,7 @@ class InSilicoVA:
                  indiv_ci: Union[None, float] = None,
                  groupcode: bool = False):
 
+        # instance attributes from arguments
         self.data = data.copy()
         self.data_type = data_type
         self.sci = sci
@@ -98,28 +102,41 @@ class InSilicoVA:
         self.no_is_missing = no_is_missing
         self.indiv_ci = indiv_ci
         self.groupcode = groupcode
-        self.error_log = defaultdict(list)
-        self.vacheck_log = {"first_pass": [], "second_pass": []}
-        self.causetext = None
-        self.probbase = None
 
+        # retain copies of original input -- IS THIS NEEDED?
         self.original_data = data.copy()
         if isinstance(subpop, str):
             self.original_subpop = subpop
-        elif subpop:
+        elif subpop is not None:
             self.original_subpop = subpop.copy()
         else:
             self.original_subpop = None
-        self.subpop_order_list = None
-        # initialize probbase
+
+        # attributes set by self._initialize_data_dependencies()
+        self.probbase = None
+        self.causetext = None
+        # attributes set by self._prep_data() or self._prep_data_custom()
+        self.sys_prior = None
         self.prob_orig = None
-        # attributes for external causes
+        self.negate = None
+        self.va_labels = None
+        self.va_causes = None
+        self.external_causes = None
+        self.external_symps = None
+        # attributes set by self.datacheck()
+        self.error_log = defaultdict(list)
+        self.vacheck_log = {"first_pass": [], "second_pass": []}
+
+        # orphan attributes (need to be organized/located)
+        self.subpop_order_list = None
+
+        # attributes set by self._remove_ext() (I think)
         self.ext_sub = None
         self.ext_id = None
         self.ext_cod = None
         self.ext_csmf = None
         self.ext_prob = None
-        self.negate = None
+
         # attributes for future use? (unused in R code)
         # self.probbase_by_symp_dev
         self.method = "normal"
@@ -129,10 +146,18 @@ class InSilicoVA:
         #     self.n_level = self.n_level_dev
         self.n_level = 15
 
+        # TODO: Consider adding run() method and simply calling it here
+        #       (as opposed to 8+ methods) to keep logic simple
         self._change_data_coding()
         self._check_args()
         self._initialize_data_dependencies()
-        self._setup_subpop()
+        if self.subpop is not None:
+            self._extract_subpop()
+        self.customization_dev = False
+        if self.customization_dev:
+            self._prep_data_custom()
+        else:
+            self._prep_data()
 
     def _change_data_coding(self):
         if self.data_type == "WHO2016":
@@ -154,7 +179,11 @@ class InSilicoVA:
             self.data.replace("", ".", inplace=True)
 
     def _check_args(self):
-        # column names converted to lowercase on instantiation
+        """Check for valid arguments."""
+        if self.data_type not in VALID_DATA_TYPES:
+            valid_str = ", ".join(VALID_DATA_TYPES)
+            raise ArgumentException(
+                f"Error: data_type must be one of the following: {valid_str}\n")
         if self.data_type == "WHO2016" and "i183o" in list(self.data):
             warnings.warn("Due to the inconsistent names in the early version "
                           "of InterVA5, the indicator 'i183o' has been " 
@@ -206,31 +235,83 @@ class InSilicoVA:
 
         self.probbase.fillna(".", inplace=True)
         self.probbase = self.probbase.to_numpy(dtype=str)
-        self.prob_orig = self.probbase[1:, 20:81].copy()
-        self.negate = np.array([False] * self.prob_orig.shape[0])
         if self.groupcode:
             self.causetext.drop(columns=list(self.causetext)[1], inplace=True)
         else:
             self.causetext.drop(columns=list(self.causetext)[2], inplace=True)
 
-    def _setup_subpop(self):
+    def _extract_subpop(self):
         """Set subpop attribute."""
-        if isinstance(self.subpop, pd.Series):
-            self.subpop.fillna("missing", inplace=True)
-            self.subpop = self.subpop.astype("string")
-        elif isinstance(self.subpop, (str, list)):
+        if isinstance(self.subpop, (str, list)):
             try:
                 self.subpop = self.data[self.original_subpop].copy()
             except KeyError as exc:
                 raise ArgumentException(
                     f"Error: invalid subpop name specification:\n{exc}")
-            self.subpop.fillna("missing", inplace=True)
-            self.subpop = self.subpop.astype("string")
-            if self.subpop.ndim > 1:
-                self.subpop = self.subpop.apply(
-                    lambda x: "_".join(x.to_list()),
-                    axis=1
+        self.subpop.fillna("missing", inplace=True)
+        self.subpop = self.subpop.astype("string")
+        if self.subpop.ndim > 1:
+            self.subpop = self.subpop.apply(
+                lambda x: "_".join(x.to_list()),
+                axis=1
+            )
+        if len(self.subpop.fillna(".").unique()) == 1:
+            warnings.warn("Only one level in subpopulation, running the  "
+                          "dataset as on population.",
+                          UserWarning)
+            self.subpop = None
+
+    def _prep_data(self):  # (down to line 976 in R code)
+        """Set up probbase, check column names, and perform misc data prep."""
+        if self.data_type == "WHO2012":
+            pbcols = slice(16, 76)
+        elif self.data_type == "WHO2016":
+            pbcols = slice(20, 81)
+        self.sys_prior = self._change_inter(
+            self.probbase[0, pbcols], order=False, standard=True)
+        self.prob_orig = self.probbase[1:, pbcols].copy()
+        self.negate = np.array([False] * self.prob_orig.shape[0])
+        if self.data_type == "WHO2016":
+            subst_vector = self.probbase[1:, 5]
+            self.negate[subst_vector == "N"] = True
+        if self.data.shape[1] != self.probbase.shape[0]:
+            self.data.rename(columns=dict(
+                zip(self.data.columns[1:],
+                    self.data.columns[1:].str.lower())),
+                inplace=True)
+            if self.data_type == "WHO2012":
+                correct_names = self.probbase[1:, 1]
+            elif self.data_type == "WHO2016":
+                correct_names = self.probbase[1:, 0]
+            data_colnames = np.array(list(self.data))
+            exist = np.in1d(correct_names, data_colnames)
+            if (exist == False).sum() > 0:
+                missing_cols = correct_names[~exist].tolist()
+                raise DataException(
+                    "Error: invalid data input format.  Symptom(s) not "
+                    "found: "
+                    ", ".join(missing_cols)
                 )
+            else:
+                get_cols = [self.data.columns[0]]
+                get_cols.extend(correct_names.tolist())
+                self.data = self.data[get_cols]
+        if self.data_type == "WHO2012":
+            randomva1 = get_vadata("randomva1", verbose=False)
+            self.valabels = list(randomva1)
+            self.vacauses = self.causetext.iloc[3:63, 1]
+            self.external_causes = list(range(40, 51))
+            self.external_symps = list(range(210, 222))
+        elif self.data_type == "WHO2016":
+            randomva5 = get_vadata("randomva5", verbose=False)
+            self.valabels = list(randomva5)
+            self.vacauses = self.causetext.iloc[3:64, 1]
+            self.external_causes = list(range(49, 60))
+            self.external_symps = list(range(19, 38))
+
+    def _prep_data_custom(self):
+        """Data prep with developer customization."""
+        pass
 
     @staticmethod
     def _interva_table(
@@ -536,5 +617,3 @@ class InSilicoVA:
                 self.ext_csmf = []
                 for i in range(4):
                     pass
-
-

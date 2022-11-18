@@ -185,6 +185,29 @@ def test_prep_data_2016():
     assert all(out.data.columns == va_data.columns)
 
 
+def test_prep_data_change_label():
+    tmp_data = va_data.copy()
+    new_names = list(tmp_data)[0:100]
+    new_names.extend([x + "_new" for x in tmp_data.columns[100:]])
+    tmp_data.columns = new_names
+    pb = probbase5.copy()
+    pb.iloc[:, 0] = tmp_data.columns
+    with pytest.warns(UserWarning):
+        out = InSilicoVA(data=tmp_data, sci=pb)
+    assert all(out.data.columns == out.va_labels)
+
+
+def test_prep_data_cond_prob():
+    pb = probbase5.copy()
+    new_names = list(pb)[0:100]
+    new_names.extend([x + "_new" for x in pb.columns[100:]])
+    pb.columns = new_names
+    out = InSilicoVA(data=va_data, cond_prob=pb)
+    assert out.prob_orig.equals(pb)
+    assert out.exclude_impossible_causes == "none"
+    assert all(out.va_causes == pb.columns)
+
+
 class TestInterVATable:
     results = InSilicoVA(data=va_data)
     answer = np.array([1, 0.8, 0.5, 0.2, 0.1,

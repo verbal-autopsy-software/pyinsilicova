@@ -34,8 +34,8 @@ class InSilicoVA:
                  is_numeric: bool = False,
                  update_cond_prob: bool = True,
                  keep_probbase_level: bool = True,
-                 cond_prob: Union[None, np.ndarray] = None,
-                 cond_prob_num: Union[None, np.ndarray] = None,
+                 cond_prob: Union[None, pd.DataFrame] = None,
+                 cond_prob_num: Union[None, pd.DataFrame] = None,
                  datacheck: bool = True,
                  datacheck_missing: bool = True,
                  warning_write: bool = False,
@@ -123,13 +123,12 @@ class InSilicoVA:
         self.va_causes = None
         self.external_causes = None
         self.external_symps = None
+        self.subpop_order_list = None
+        self.probbase_dev = None  # not implemented yet
+        self.gstable_dev = None # not implemented yet
         # attributes set by self.datacheck()
         self.error_log = defaultdict(list)
         self.vacheck_log = {"first_pass": [], "second_pass": []}
-
-        # orphan attributes (need to be organized/located)
-        self.subpop_order_list = None
-
         # attributes set by self._remove_ext() (I think)
         self.ext_sub = None
         self.ext_id = None
@@ -298,20 +297,68 @@ class InSilicoVA:
                 self.data = self.data[get_cols]
         if self.data_type == "WHO2012":
             randomva1 = get_vadata("randomva1", verbose=False)
-            self.valabels = list(randomva1)
-            self.vacauses = self.causetext.iloc[3:63, 1]
+            self.va_labels = list(randomva1)
+            self.va_causes = self.causetext.iloc[3:63, 1]
             self.external_causes = list(range(40, 51))
             self.external_symps = list(range(210, 222))
         elif self.data_type == "WHO2016":
             randomva5 = get_vadata("randomva5", verbose=False)
-            self.valabels = list(randomva5)
-            self.vacauses = self.causetext.iloc[3:64, 1]
+            self.va_labels = list(randomva5)
+            self.va_causes = self.causetext.iloc[3:64, 1]
             self.external_causes = list(range(49, 60))
             self.external_symps = list(range(19, 38))
+        count_change_label = 0
+        for i in range(len(self.va_labels)):
+            data_lab = list(self.data)[i]
+            va_lab = self.va_labels[i]
+            if data_lab.lower() != va_lab.lower():
+                warnings.warn(f"Input column '{data_lab}' does not match "
+                              f"InterVA standard: '{va_lab}'.",
+                              UserWarning)
+                count_change_label += 1
+        if count_change_label > 0:
+            warnings.warn(f"{count_change_label} column names changed in "
+                          "input. \n If the change is undesirable, please "
+                          "change the input to match InterVA input format.\n",
+                          UserWarning)
+            self.data.columns = self.va_labels
+        if self.cond_prob is not None:
+            self.prob_orig = self.cond_prob
+            self.exclude_impossible_causes = "none"
+            self.va_causes = list(self.cond_prob)
+        if self.cond_prob_num is not None:
+            self.prob_orig = self.cond_prob_num
+            self.update_cond_prob = False
+            self.va_causes = list(self.cond_prob_num)
+
+        if self.datacheck:
+            v5 = self.data_type == "WHO2016"
+            self._remove_bad(is_numeric=self.is_numeric, version5=v5)
+            if self.subpop is not None:
+                self.subpop_order_list = self.subpop.unique().tolist()
+                self.subpop_order_list.sort()
+        else:
+            self.error_log = None
 
     def _prep_data_custom(self):
         """Data prep with developer customization."""
-        pass
+        self.sys_prior = np.ones(self.probbase_dev.shape[1])
+        correct_names = self.probbase_dev.index.tolist()
+        data_colnames = np.array(list(self.data))
+        exist = np.in1d(correct_names, data_colnames)
+        if (exist == False).sum() > 0:
+            raise ArgumentException(
+                "Error: invalid data input, no matching symptoms found. \n")
+        else:
+            get_cols = [self.data.columns[0]]
+            get_cols.extend(correct_names.tolist())
+            self.data = self.data[get_cols]
+        self.prob_orig = self.probbase_dev
+        self.va_labels = list(self.data)
+        self.va_causes = self.gstable_dev
+        self.external_causes = None
+        self.error_log = None
+
 
     @staticmethod
     def _interva_table(

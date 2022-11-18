@@ -335,7 +335,7 @@ class InSilicoVA:
             v5 = self.data_type == "WHO2016"
             self._remove_bad(is_numeric=self.is_numeric, version5=v5)
             if self.subpop is not None:
-                self.subpop_order_list = self.subpop.unique().tolist()
+                self.subpop_order_list = list(self.subpop.unique())
                 self.subpop_order_list.sort()
         else:
             self.error_log = None

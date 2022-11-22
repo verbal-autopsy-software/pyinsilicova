@@ -128,6 +128,7 @@ class InSilicoVA:
         self.gstable_dev = None # not implemented yet
         # attributes set by self.datacheck()
         self.error_log = defaultdict(list)
+        self.data_checked = None
         self.vacheck_log = {"first_pass": [], "second_pass": []}
         # attributes set by self._remove_ext() (I think)
         self.ext_sub = None
@@ -157,6 +158,8 @@ class InSilicoVA:
             self._prep_data_custom()
         else:
             self._prep_data()
+        self._standardize_upper()
+        self._datacheck()
 
     def _change_data_coding(self):
         if self.data_type == "WHO2016":
@@ -231,7 +234,6 @@ class InSilicoVA:
                         "354 rows and 87 columns.\n")
                 self.probbase = self.sci.copy()
             self.causetext = get_vadata("causetextV5", verbose=False)
-
         self.probbase.fillna(".", inplace=True)
         self.probbase = self.probbase.to_numpy(dtype=str)
         if self.groupcode:
@@ -359,6 +361,9 @@ class InSilicoVA:
         self.external_causes = None
         self.error_log = None
 
+    def _standardize_upper(self):
+        """Change inputs (y, n) to uppercase."""
+        self.data.replace({"y": "Y", "n": "N"}, inplace=True)
 
     @staticmethod
     def _interva_table(
@@ -587,6 +592,12 @@ class InSilicoVA:
         """Run InterVA5 data checks on input and store log in vacheck_log. """
         # TODO: might need to allow this function to accept PYQT5 object for
         #       updating a GUI progress bar
+
+        if self.data_type == "WHO2012":
+            # raise ArgumentException(
+            #     "Data checks are not yet available for WHO 2012 data."
+            # )
+            return None
         checked_input = np.zeros(self.data.shape)
         checked_input[self.data.isin(["Y", "y"])] = 1
         checked_input[~self.data.isin(["Y", "y", "N", "n"])] = np.nan
@@ -605,7 +616,25 @@ class InSilicoVA:
             self.vacheck_log["second_pass"].extend(
                 checked_results["second_pass"])
             checked_list.append(checked_results["output"])
-        self.data = pd.DataFrame(checked_list)
+        checked = pd.DataFrame(checked_list)
+        if sum(self.negate) > 0:
+            shifted_index = np.where(self.negate)[0] + 1
+            checked.iloc[:, shifted_index] = 1 - checked.iloc[:, shifted_index]
+
+        checked.fillna(-9, inplace=True)
+
+        for i in range(1, checked.shape[1]):
+            self.data.iloc[checked.iloc[:, i] == 1, i] = "Y"
+            self.data.iloc[checked.iloc[:, i] == 0, i] = ""
+            self.data.iloc[checked.iloc[:, i] == -1, i] = "."
+            self.data.iloc[checked.iloc[:, i] == -9, i] = "."
+            self.data_checked = self.data.copy()
+        if self.data_type == "WHO2016":
+            self.data_checked.replace({"Y": "y", "": "n", ".": "-"},
+                                      inplace=True)
+        # R has a check at this point (around lined 1040) for self.data being
+        # an empty data frame but I don't see how this could happen (maybe
+        # after remove bad, or with the WHO2012 datacheck in Java?)
 
     def _remove_ext(self,
                     csmf_orig,

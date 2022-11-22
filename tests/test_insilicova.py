@@ -31,9 +31,6 @@ class TestChangeDataCoding:
     def test_change_values(self):
         assert all(self.tmp_out1.data.iloc[0:10, 1] == ".")
 
-    def test_subpop(self):
-        assert any(self.tmp_out1.data[self.spop].isna())
-
     def test_blank_exception(self):
         with pytest.raises(DataException):
             InSilicoVA(data=self.tmp_data_exc)
@@ -187,11 +184,16 @@ def test_prep_data_2016():
 
 def test_prep_data_change_label():
     tmp_data = va_data.copy()
-    new_names = list(tmp_data)[0:100]
-    new_names.extend([x + "_new" for x in tmp_data.columns[100:]])
-    tmp_data.columns = new_names
+    # new_names = list(tmp_data)[100]
+    # new_names.extend([x + "_new" for x in tmp_data.columns[100:]])
+    # tmp_data.columns = new_names
+    tmp_data.rename(columns={"i019a": "imale", "i019b": "ifema"},
+                    inplace=True)
     pb = probbase5.copy()
-    pb.iloc[:, 0] = tmp_data.columns
+    pb.replace(to_replace=r"^i019a", value="imale",
+               regex=True, inplace=True)
+    pb.replace(to_replace=r"^i019b", value="ifema",
+               regex=True, inplace=True)
     with pytest.warns(UserWarning):
         out = InSilicoVA(data=tmp_data, sci=pb)
     assert all(out.data.columns == out.va_labels)
@@ -423,11 +425,17 @@ class TestRemoveBadV5:
         assert self.ins_bad_all.error_log[err_id] == err_msg
 
 
-def test_datacheck5():
-    default._datacheck()
+def test_datacheck5_values():
+    assert default.data.iloc[:, 1:].isin(["Y", "", "."]).all(axis=None)
+
+
+def test_datacheck5_checked_data():
+    assert default.data_checked.iloc[:, 1:].isin(["y", "n", "-"]).all(axis=None)
+
+
+def test_datacheck5_log():
     assert len(default.vacheck_log["first_pass"]) > 0
     assert len(default.vacheck_log["second_pass"]) > 0
-
 
 # class TestRemoveExt:
 #

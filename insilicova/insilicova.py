@@ -130,12 +130,15 @@ class InSilicoVA:
         self.error_log = defaultdict(list)
         self.data_checked = None
         self.vacheck_log = {"first_pass": [], "second_pass": []}
-        # attributes set by self._remove_ext() (I think)
+        # attributes set by self._remove_ext()
         self.ext_sub = None
         self.ext_id = None
         self.ext_cod = None
         self.ext_csmf = None
         self.ext_prob = None
+
+        # results (should a run() method return an InSilicoVA data object?)
+        self.results = {}
 
         # attributes for future use? (unused in R code)
         # self.probbase_by_symp_dev
@@ -159,7 +162,10 @@ class InSilicoVA:
         else:
             self._prep_data()
         self._standardize_upper()
-        self._datacheck()
+        if self.datacheck:
+            self._datacheck()
+        if self.external_sep:
+            self._remove_external_causes()
 
     def _change_data_coding(self):
         if self.data_type == "WHO2016":
@@ -230,7 +236,7 @@ class InSilicoVA:
             else:
                 if self.sci.shape != (354, 87) or not isinstance(self.sci, pd.DataFrame):
                     raise ArgumentException(
-                        "Error: invalid sci (must be data frame with "
+                        "Error: invalid sci (must be DataFrame with "
                         "354 rows and 87 columns.\n")
                 self.probbase = self.sci.copy()
             self.causetext = get_vadata("causetextV5", verbose=False)
@@ -301,14 +307,14 @@ class InSilicoVA:
             randomva1 = get_vadata("randomva1", verbose=False)
             self.va_labels = list(randomva1)
             self.va_causes = self.causetext.iloc[3:63, 1]
-            self.external_causes = list(range(40, 51))
-            self.external_symps = list(range(210, 222))
+            self.external_causes = np.arange(40, 51)
+            self.external_symps = np.arange(210, 222)
         elif self.data_type == "WHO2016":
             randomva5 = get_vadata("randomva5", verbose=False)
             self.va_labels = list(randomva5)
             self.va_causes = self.causetext.iloc[3:64, 1]
-            self.external_causes = list(range(49, 60))
-            self.external_symps = list(range(19, 38))
+            self.external_causes = np.arange(49, 60)
+            self.external_symps = np.arange(19, 38)
         count_change_label = 0
         for i in range(len(self.va_labels)):
             data_lab = list(self.data)[i]
@@ -325,13 +331,15 @@ class InSilicoVA:
                           UserWarning)
             self.data.columns = self.va_labels
         if self.cond_prob is not None:
-            self.prob_orig = self.cond_prob
             self.exclude_impossible_causes = "none"
             self.va_causes = list(self.cond_prob)
+            cond_prob = self.cond_prob.fillna(".")
+            self.prob_orig = cond_prob.to_numpy(dtype=str)
         if self.cond_prob_num is not None:
-            self.prob_orig = self.cond_prob_num
             self.update_cond_prob = False
             self.va_causes = list(self.cond_prob_num)
+            cond_prob_num = self.cond_prob_num.fillna(".")
+            self.prob_orig = cond_prob_num.to_numpy(dtype=str)
 
         if self.datacheck:
             v5 = self.data_type == "WHO2016"
@@ -636,27 +644,23 @@ class InSilicoVA:
         # an empty data frame but I don't see how this could happen (maybe
         # after remove bad, or with the WHO2012 datacheck in Java?)
 
-    def _remove_ext(self,
-                    csmf_orig,
-                    is_numeric,
-                    external_causes,
-                    external_symps):
+    def _remove_ext(self):
         """
         Method to remove external causes/symptoms and assign deterministic
-        causes.
-
-        :param csmf_orig: probbase prior
-        :type csmf_orig: list or numpy.ndarray (vector)
-        :param is_numeric: Indicator for if data are numeric
-        :type is_numeric: bool
-        :param external_causes: indicator of elements that are external causes
-        :type external_causes: list/numpy.ndarray (vector)
-        :param external_symps: indicator for data columns with external symptoms
-        :type external_symps: list/numpy.ndarray (vector)
+        causes for data_type == 'WHO2012'.
         """
+        pass
+
+    def _remove_ext_v5(self):
+        """
+        Method to remove external causes/symptoms and assign deterministic
+        causes for data_type == 'WHO2016'.
+        """
+        csmf_orig = self.probbase[0, 20:]
         n_all = self.data.shape[0]
-        ext_data = self.data.iloc[:, external_symps + 1].copy()
-        if is_numeric:
+        n_ext_causes = len(self.external_causes)
+        ext_data = self.data.iloc[:, self.external_symps + 1].copy()
+        if self.is_numeric:
             neg = 0
             pos = 1
         else:
@@ -665,31 +669,73 @@ class InSilicoVA:
         ext_where = (ext_data == pos).any(axis=1)
         ext_data = ext_data.loc[ext_where, :]
         self.ext_id = self.data.loc[ext_where, "ID"].copy()
-        self.ext_sub = self.subpop.loc[ext_where].copy()
+        if self.subpop is not None:
+            n_subpops = len(self.subpop_order_list)
+            self.ext_sub = self.subpop.loc[ext_where].copy()
         prob_sub = self._change_inter(
-            self.prob_orig[np.ix_(external_symps, external_causes)])
+            self.prob_orig[np.ix_(self.external_symps, self.external_causes)])
         csmf_sub = self._change_inter(
-            csmf_orig[external_causes])
-        self.prob_orig = np.delete(self.prob_orig, external_symps, axis=0)
-        self.prob_orig = np.delete(self.prob_orig, external_causes, axis=1)
-        self.negate = np.delete(self.negate, external_symps)
-        if external_symps.shape[0] > 0:
+            csmf_orig[self.external_causes])
+        self.prob_orig = np.delete(self.prob_orig, self.external_symps, axis=0)
+        self.prob_orig = np.delete(self.prob_orig, self.external_causes, axis=1)
+        self.negate = np.delete(self.negate, self.external_symps)
+        if self.external_symps.shape[0] > 0:
             self.data.drop(
-                self.data.columns[external_symps + 1], axis=1, inplace=True
-            )
+                self.data.columns[self.external_symps + 1],
+                axis=1, inplace=True)
         if ext_where.sum() > 0:
             n_row = ext_data.shape[0]
-            n_col = external_causes.shape[0]
+            n_col = self.external_causes.shape[0]
             probs = np.ones((n_row, n_col))
             for i in range(n_row):
                 for j in range(n_col):
                     symp_pos = ext_data.iloc[i] == pos
+                    symp_pos = symp_pos.to_numpy(dtype=bool)
                     probs[i, j] = csmf_sub[j] * (prob_sub[symp_pos, j].prod())
-                probs[i, :] = probs[i, :]/probs[i, :].sum()
+                probs[i, :] = probs[i, :]/sum(probs[i, :])
             self.ext_prob = probs
             self.data = self.data[~ext_where]
+            if self.subpop is not None:
+                self.ext_csmf = []
+                for i in range(n_subpops):
+                    self.ext_csmf.append(np.zeros(n_ext_causes))
+                    # TODO: need a test where a subpop has 0 external symptoms
+                    row_subpop_i = self.ext_sub == self.subpop_order_list[i]
+                    row_subpop_i = row_subpop_i.to_numpy(dtype=bool)
+                    ext_prob_temp = self.ext_prob[row_subpop_i, :]
+                    if ext_prob_temp.shape[0] > 0:
+                        self.ext_csmf[i] = (ext_prob_temp.mean(axis=0) *
+                                            ext_prob_temp.shape[0]) / sum(
+                            self.subpop == self.subpop_order_list[i])
+            else:
+                self.ext_csmf = self.ext_prob.mean(axis=0) * len(self.ext_id) / n_all
+            if ext_where.sum() > 0 and self.subpop is not None:
+                self.subpop = self.subpop[~ext_where]
         else:
             if self.subpop is not None:
                 self.ext_csmf = []
-                for i in range(4):
-                    pass
+                for i in range(n_subpops):
+                    self.ext_csmf.append(np.zeros(n_ext_causes))
+            else:
+                self.ext_csmf = np.zeros(n_ext_causes)
+            self.ext_prob = np.zeros(
+                (ext_data.shape[0], n_ext_causes))
+
+    def _remove_external_causes(self):
+        if self.data_type == "WHO2012":
+            self._remove_ext()
+        else:
+            self._remove_ext_v5()
+        if self.data.shape[0] == 0:
+            warnings.warn("All deaths are assigned to external causes."
+                          "A list of external causes is returned instead of "
+                          "an InSilico object.\n",
+                          UserWarning)
+            if self.data_type == "WHO2012":
+                pass
+            else:
+                self.results["ID"] = self.ext_id
+                names_external_causes = self.va_causes[self.external_causes]
+                for i in range(len(self.external_causes)):
+                    cause_i = names_external_causes[i]
+                    self.results[cause_i] = self.ext_prob[:, i]

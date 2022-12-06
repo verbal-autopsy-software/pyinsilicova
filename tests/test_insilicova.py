@@ -66,7 +66,7 @@ def test_null_chain_etc():
 @pytest.mark.skip("A reminder to update this test when fnc is created")
 def test_warning_write(tmp_path):
     results = InSilicoVA(data=va_data,
-                         directory=tmp_path,
+                         directory=str(tmp_path),
                          warning_write=True)
     log_file = tmp_path / "errorlog_insilico.txt"
     assert os.path.isfile(log_file)
@@ -91,8 +91,10 @@ def test_arg_probbase_who2012():
     out = InSilicoVA(data=va_data1, data_type="WHO2012", groupcode=False)
     assert isinstance(out.probbase, np.ndarray)
     assert out.probbase.shape == probbase3.shape
-    assert all(out.causetext.fillna(".").iloc[:, 0] == causetext.fillna(".").iloc[:, 0])
-    assert all(out.causetext.fillna(".").iloc[:, 1] == causetext.fillna(".").iloc[:, 1])
+    assert all(
+        out.causetext.fillna(".").iloc[:, 0] == causetext.fillna(".").iloc[:, 0])
+    assert all(
+        out.causetext.fillna(".").iloc[:, 1] == causetext.fillna(".").iloc[:, 1])
 
 
 def test_arg_probbase_who2016():
@@ -125,7 +127,8 @@ def test_arg_groupcode_true():
 
 def test_arg_groupcode_2012_true():
     out = InSilicoVA(data=va_data1, data_type="WHO2012", groupcode=True)
-    assert all(out.causetext.fillna(".").iloc[:, 1] == causetext.fillna(".").iloc[:, 2])
+    assert all(
+        out.causetext.fillna(".").iloc[:, 1] == causetext.fillna(".").iloc[:, 2])
 
 
 def test_subpop_exception():
@@ -178,8 +181,10 @@ def test_prep_data_2016():
     tmp_data.columns = tmp_data.columns.str.upper()
     tmp_data["new_col"] = "not a VA column"
     out = InSilicoVA(tmp_data, data_type="WHO2016")
-    assert out.data.shape == va_data.shape
-    assert all(out.data.columns == va_data.columns)
+    ext_shape = (len(out.ext_id), len(out.external_symps))
+    out_shape = [a + b for a, b in zip(out.data.shape, ext_shape)]
+    assert tuple(out_shape) == va_data.shape
+    assert set(list(out.data)).issubset(set(list(va_data)))
 
 
 def test_prep_data_change_label():
@@ -196,16 +201,15 @@ def test_prep_data_change_label():
                regex=True, inplace=True)
     with pytest.warns(UserWarning):
         out = InSilicoVA(data=tmp_data, sci=pb)
-    assert all(out.data.columns == out.va_labels)
+    assert set(list(out.data)).issubset(set(list(va_data)))
 
 
 def test_prep_data_cond_prob():
-    pb = probbase5.copy()
-    new_names = list(pb)[0:100]
-    new_names.extend([x + "_new" for x in pb.columns[100:]])
+    pb = probbase5.iloc[1:, slice(20, 81)].copy()
+    new_names = list(pb)[0:20]
+    new_names.extend([x + "_new" for x in pb.columns[20:]])
     pb.columns = new_names
     out = InSilicoVA(data=va_data, cond_prob=pb)
-    assert out.prob_orig.equals(pb)
     assert out.exclude_impossible_causes == "none"
     assert all(out.va_causes == pb.columns)
 
@@ -282,7 +286,6 @@ def test_cond_initiate():
 
 
 class TestRemoveBad:
-
     n_bad_age = 5
     df_age = va_data1.copy()
     age_ind = df_age.index[0:n_bad_age]
@@ -354,7 +357,6 @@ class TestRemoveBad:
 
 
 class TestRemoveBadV5:
-
     n_bad_age = 5
     df_age = va_data.copy()
     age_ind = df_age.index[0:n_bad_age]
@@ -387,7 +389,7 @@ class TestRemoveBadV5:
 
     def test_remove_bad_age(self):
         old_n = self.ins_bad_age.original_data.shape[0]
-        new_n = self.ins_bad_age.data.shape[0]
+        new_n = self.ins_bad_age.data.shape[0] + len(self.ins_bad_age.ext_id)
         # assumes randomva1 has no missing age values
         assert new_n == (old_n - self.n_bad_age)
 
@@ -400,7 +402,7 @@ class TestRemoveBadV5:
 
     def test_remove_bad_sex(self):
         old_n = self.ins_bad_sex.original_data.shape[0]
-        new_n = self.ins_bad_sex.data.shape[0]
+        new_n = self.ins_bad_sex.data.shape[0] + len(self.ins_bad_sex.ext_id)
         # assumes randomva1 has no missing sex values
         assert new_n == (old_n - self.n_bad_sex)
 
@@ -413,7 +415,7 @@ class TestRemoveBadV5:
 
     def test_remove_bad_all(self):
         old_n = self.ins_bad_all.original_data.shape[0]
-        new_n = self.ins_bad_all.data.shape[0]
+        new_n = self.ins_bad_all.data.shape[0] + len(self.ins_bad_all.ext_id)
         # assumes randomva1 has no deaths with all missing (except age & sex)
         assert new_n == (old_n - self.n_bad_all)
 
@@ -430,44 +432,41 @@ def test_datacheck5_values():
 
 
 def test_datacheck5_checked_data():
-    assert default.data_checked.iloc[:, 1:].isin(["y", "n", "-"]).all(axis=None)
+    assert default.data_checked.iloc[:, 1:].isin(["y", "n", "-"]).all(
+        axis=None)
 
 
 def test_datacheck5_log():
     assert len(default.vacheck_log["first_pass"]) > 0
     assert len(default.vacheck_log["second_pass"]) > 0
 
-# class TestRemoveExt:
-#
-#     orig_shape = default.data.shape
-#     n_external = 19
-#
-#     prob_orig = probbase5.iloc[1:, 20:81].to_numpy(copy=True)
-#     subst = probbase5.iloc[1:, 5].to_numpy(copy=True)
-#     csmf_orig = probbase5.iloc[0, 20:]
-#     ext_causes = np.arange(49, 60)
-#     ext_symptoms = np.arange(19, 38)
-#     is_numeric = True
-#     # subpop = va_data["i019a"].astype("string", copy=True)
-#     # subpop_order_list = np.sort(subpop.unique())
-#     # negate = (subst == "N")
-#
-#     ext_col = default.data.iloc[:, 1:].columns[ext_symptoms]
-#     default.data.loc[:, ext_col] = 0
-#     default.data.loc[default.data.index[0:n_external], ext_col[0]] = 1
-#     default._remove_ext(csmf_orig, is_numeric, ext_causes, ext_symptoms)
-#
-#     def test_data_shape(self):
-#         assert default.data.shape[0] == (self.orig_shape[0] - self.n_external)
-#
-#     def test_ext_id_shape(self):
-#         assert default.ext_id.shape[0] == self.n_external
-#
-#     def test_ext_sub_shape(self):
-#         assert default.ext_sub.shape[0] == self.n_external
-#
-#     def test_ext_csmf(self):
-#         assert default.ext_csmf is not None
-#
-#     def test_negate_shape(self):
-#         assert default.negate.shape[0] == (self.orig_shape[0] - self.ext_symptoms.shape[0])
+
+class TestRemoveExt:
+    n_external = 19
+    tmp_data = va_data.copy()
+    orig_shape = va_data.shape
+    ext_causes = np.arange(49, 60)
+    ext_symptoms = np.arange(19, 38)
+
+    ext_col = tmp_data.iloc[:, 1:].columns[ext_symptoms]
+    tmp_data.loc[:, ext_col] = "n"
+    tmp_data.loc[tmp_data.index[0:n_external], ext_col[0]] = "y"
+    tmp_instance = InSilicoVA(tmp_data, data_type="WHO2016", subpop=["i019a"])
+
+    def test_data_shape(self):
+        assert self.tmp_instance.data.shape[0] == (
+                    self.orig_shape[0] - self.n_external)
+
+    def test_ext_id_shape(self):
+        assert self.tmp_instance.ext_id.shape[0] == self.n_external
+
+    def test_ext_sub_shape(self):
+        assert self.tmp_instance.ext_sub.shape[0] == self.n_external
+
+    def test_ext_csmf(self):
+        assert self.tmp_instance.ext_csmf is not None
+
+    def test_negate_shape(self):
+        # subtract 1 extra for the ID column
+        assert self.tmp_instance.negate.shape[0] == (self.orig_shape[1] - 1 -
+                                                     self.ext_symptoms.shape[0])

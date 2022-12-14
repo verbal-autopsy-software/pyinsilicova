@@ -17,8 +17,9 @@ import pandas as pd
 import numpy as np
 from collections import defaultdict
 
-
 VALID_DATA_TYPES = ("WHO2016", "WHO2012")
+VALID_EXCLUDE_IMPOSSIBLE_CAUSE = (
+    "all", "interva", "none", "subset", "subset2")
 
 
 class InSilicoVA:
@@ -60,10 +61,11 @@ class InSilicoVA:
                  phy_external: Union[None, str] = None,
                  phy_debias: Union[None, dict] = None,
                  exclude_impossible_causes: str = "subset2",
-                 impossible_combination: Union[None, str] = None,
+                 impossible_combination: Union[None, pd.DataFrame] = None,
                  no_is_missing: bool = False,
                  indiv_ci: Union[None, float] = None,
-                 groupcode: bool = False):
+                 groupcode: bool = False,
+                 run: bool = True):
 
         # instance attributes from arguments
         self.data = data.copy()
@@ -102,6 +104,7 @@ class InSilicoVA:
         self.no_is_missing = no_is_missing
         self.indiv_ci = indiv_ci
         self.groupcode = groupcode
+        self.run = run
 
         # retain copies of original input -- IS THIS NEEDED?
         self.original_data = data.copy()
@@ -114,18 +117,20 @@ class InSilicoVA:
 
         # attributes set by self._initialize_data_dependencies()
         self.probbase = None
+        self.probbase_colnames = None
         self.causetext = None
         # attributes set by self._prep_data() or self._prep_data_custom()
         self.sys_prior = None
         self.prob_orig = None
+        self.prob_orig_colnames = None
         self.negate = None
         self.va_labels = None
         self.va_causes = None
         self.external_causes = None
         self.external_symps = None
         self.subpop_order_list = None
-        self.probbase_dev = None  # not implemented yet
-        self.gstable_dev = None # not implemented yet
+        self.probbase_dev = None  # not yet implemented
+        self.gstable_dev = None  # not yet implemented
         # attributes set by self.datacheck()
         self.error_log = defaultdict(list)
         self.data_checked = None
@@ -136,12 +141,26 @@ class InSilicoVA:
         self.ext_cod = None
         self.ext_csmf = None
         self.ext_prob = None
+        # attributes set by self._initialize_numerical_matrix()
+        self.cond_prob_true = None
+        self.prob_order = None
+        self.table_dev = None  # not yet implemented
+        self.table_num_dev = None  # not yet implemented
+        # attributes set by self._check_data_dimensions()
+        self.va_causes_current = None
+        # attributes set by self._check_impossible_pairs()
+        self.impossible = None
+        # attributes set by self._physician_codes
+        self.c_phy = None
+        self.assignment = None
+        self.va_causes_broader = None
 
         # results (should a run() method return an InSilicoVA data object?)
-        self.results = {}
+        self.results = None
 
         # attributes for future use? (unused in R code)
         # self.probbase_by_symp_dev
+        self.customization_dev = False
         self.method = "normal"
         self.alpha_scale = None
         # self.n_level_dev = None
@@ -149,14 +168,15 @@ class InSilicoVA:
         #     self.n_level = self.n_level_dev
         self.n_level = 15
 
-        # TODO: Consider adding run() method and simply calling it here
-        #       (as opposed to 8+ methods) to keep logic simple
+        if self.run:
+            self._run()
+
+    def _run(self):
         self._change_data_coding()
         self._check_args()
         self._initialize_data_dependencies()
         if self.subpop is not None:
             self._extract_subpop()
-        self.customization_dev = False
         if self.customization_dev:
             self._prep_data_custom()
         else:
@@ -166,6 +186,16 @@ class InSilicoVA:
             self._datacheck()
         if self.external_sep:
             self._remove_external_causes()
+        if self.data.shape[0] > 0:
+            self._check_missing_all()
+            if not self.datacheck_missing and self.datacheck:
+                warnings.warn(
+                    "check missing after removing symptoms is disabled...\n",
+                    UserWarning)
+            self._initialize_numerical_matrix()
+            self._check_data_dimensions()
+            self._check_impossible_pairs()
+            self._physician_codes()
 
     def _change_data_coding(self):
         if self.data_type == "WHO2016":
@@ -194,16 +224,16 @@ class InSilicoVA:
                 f"Error: data_type must be one of the following: {valid_str}\n")
         if self.data_type == "WHO2016" and "i183o" in list(self.data):
             warnings.warn("Due to the inconsistent names in the early version "
-                          "of InterVA5, the indicator 'i183o' has been " 
+                          "of InterVA5, the indicator 'i183o' has been "
                           "renamed as 'i183a'.")
             self.data.rename(columns={"i183o": "i183a"}, inplace=True)
 
         if not self.datacheck and self.data_type == "WHO2016":
             warnings.warn("Data check is turned off. Please be very careful "
-                          "with this, because some indicators needs to be " 
-                          "negated in the data check steps (i.e., having " 
+                          "with this, because some indicators needs to be "
+                          "negated in the data check steps (i.e., having "
                           "symptom = Yes turned into not having symptom = No "
-                          "). Failing to properly negate all such symptoms " 
+                          "). Failing to properly negate all such symptoms "
                           "will lead to erroneous inference.",
                           UserWarning)
         if self.warning_write:
@@ -234,13 +264,15 @@ class InSilicoVA:
                 probbase_version = self.probbase.iat[0, 2]
                 print(f"Using Probbase version: {probbase_version}\n")
             else:
-                if self.sci.shape != (354, 87) or not isinstance(self.sci, pd.DataFrame):
+                if (self.sci.shape != (354, 87) or
+                        not isinstance(self.sci, pd.DataFrame)):
                     raise ArgumentException(
                         "Error: invalid sci (must be DataFrame with "
                         "354 rows and 87 columns.\n")
                 self.probbase = self.sci.copy()
             self.causetext = get_vadata("causetextV5", verbose=False)
         self.probbase.fillna(".", inplace=True)
+        self.probbase_colnames = np.array(list(self.probbase))
         self.probbase = self.probbase.to_numpy(dtype=str)
         if self.groupcode:
             self.causetext.drop(columns=list(self.causetext)[1], inplace=True)
@@ -277,6 +309,7 @@ class InSilicoVA:
         self.sys_prior = self._change_inter(
             self.probbase[0, pbcols], order=False, standard=True)
         self.prob_orig = self.probbase[1:, pbcols].copy()
+        self.prob_orig_colnames = self.probbase_colnames[pbcols,].copy()
         self.negate = np.array([False] * self.prob_orig.shape[0])
         if self.data_type == "WHO2016":
             subst_vector = self.probbase[1:, 5]
@@ -306,15 +339,16 @@ class InSilicoVA:
         if self.data_type == "WHO2012":
             randomva1 = get_vadata("randomva1", verbose=False)
             self.va_labels = list(randomva1)
-            self.va_causes = self.causetext.iloc[3:63, 1]
+            self.va_causes = self.causetext.iloc[3:63, 1].copy()
             self.external_causes = np.arange(40, 51)
             self.external_symps = np.arange(210, 222)
         elif self.data_type == "WHO2016":
             randomva5 = get_vadata("randomva5", verbose=False)
             self.va_labels = list(randomva5)
-            self.va_causes = self.causetext.iloc[3:64, 1]
+            self.va_causes = self.causetext.iloc[3:64, 1].copy()
             self.external_causes = np.arange(49, 60)
             self.external_symps = np.arange(19, 38)
+        self.va_causes.reset_index(drop=True, inplace=True)
         count_change_label = 0
         for i in range(len(self.va_labels)):
             data_lab = list(self.data)[i]
@@ -332,23 +366,31 @@ class InSilicoVA:
             self.data.columns = self.va_labels
         if self.cond_prob is not None:
             self.exclude_impossible_causes = "none"
-            self.va_causes = list(self.cond_prob)
+            # self.va_causes = list(self.cond_prob)
+            self.va_causes = pd.Series(list(self.cond_prob))
             cond_prob = self.cond_prob.fillna(".")
+            self.prob_orig_colnames = np.array(list(cond_prob))
             self.prob_orig = cond_prob.to_numpy(dtype=str)
         if self.cond_prob_num is not None:
             self.update_cond_prob = False
-            self.va_causes = list(self.cond_prob_num)
+            # self.va_causes = list(self.cond_prob_num)
+            self.va_causes = pd.Series(list(self.cond_prob_num))
             cond_prob_num = self.cond_prob_num.fillna(".")
+            self.prob_orig_colnames = np.array(list(cond_prob_num))
             self.prob_orig = cond_prob_num.to_numpy(dtype=str)
 
         if self.datacheck:
             v5 = self.data_type == "WHO2016"
             self._remove_bad(is_numeric=self.is_numeric, version5=v5)
-            if self.subpop is not None:
-                self.subpop_order_list = list(self.subpop.unique())
-                self.subpop_order_list.sort()
+            # if self.subpop is not None:
+            #     self.subpop_order_list = list(self.subpop.unique())
+            #     self.subpop_order_list.sort()
         else:
             self.error_log = None
+
+        if self.subpop is not None:
+            self.subpop_order_list = list(self.subpop.unique())
+            self.subpop_order_list.sort()
 
     def _prep_data_custom(self):
         """Data prep with developer customization."""
@@ -356,18 +398,23 @@ class InSilicoVA:
         correct_names = self.probbase_dev.index.tolist()
         data_colnames = np.array(list(self.data))
         exist = np.in1d(correct_names, data_colnames)
-        if (exist == False).sum() > 0:
+        if False in exist:
             raise ArgumentException(
                 "Error: invalid data input, no matching symptoms found. \n")
         else:
             get_cols = [self.data.columns[0]]
             get_cols.extend(correct_names.tolist())
             self.data = self.data[get_cols]
-        self.prob_orig = self.probbase_dev
+        self.prob_orig_colnames = np.array(list(self.probbase_dev))
+        self.prob_orig = self.probbase_dev.to_numpy(dtype=str, copy=True)
         self.va_labels = list(self.data)
         self.va_causes = self.gstable_dev
         self.external_causes = None
         self.error_log = None
+
+        if self.subpop is not None:
+            self.subpop_order_list = list(self.subpop.unique())
+            self.subpop_order_list.sort()
 
     def _standardize_upper(self):
         """Change inputs (y, n) to uppercase."""
@@ -407,7 +454,7 @@ class InSilicoVA:
             new_tab = table_num_dev.copy()
             new_tab = new_tab[::-1]
             if table_num_dev.min() == 0:
-                new_tab[-1] = new_tab[-2]/2
+                new_tab[-1] = new_tab[-2] / 2
                 return new_tab
             else:
                 return new_tab
@@ -542,7 +589,8 @@ class InSilicoVA:
         random_levels = np.sort(random_levels)[::-1]
         if inter_ini:
             random_levels = self._interva_table(standard=True, min_level=0)
-            random_levels = (random_levels * (trunc_max - trunc_min)) + trunc_min
+            random_levels = (random_levels * (
+                    trunc_max - trunc_min)) + trunc_min
         prob_random = probbase_order.copy()
         for i in range(n_levels):
             prob_random[probbase_order == levels[i]] = random_levels[i]
@@ -661,10 +709,8 @@ class InSilicoVA:
         n_ext_causes = len(self.external_causes)
         ext_data = self.data.iloc[:, self.external_symps + 1].copy()
         if self.is_numeric:
-            neg = 0
             pos = 1
         else:
-            neg = "N"
             pos = "Y"
         ext_where = (ext_data == pos).any(axis=1)
         ext_data = ext_data.loc[ext_where, :]
@@ -677,7 +723,11 @@ class InSilicoVA:
         csmf_sub = self._change_inter(
             csmf_orig[self.external_causes])
         self.prob_orig = np.delete(self.prob_orig, self.external_symps, axis=0)
-        self.prob_orig = np.delete(self.prob_orig, self.external_causes, axis=1)
+        self.prob_orig = np.delete(self.prob_orig, self.external_causes,
+                                   axis=1)
+        self.prob_orig_colnames = np.delete(self.prob_orig_colnames,
+                                            self.external_causes,
+                                            axis=0)
         self.negate = np.delete(self.negate, self.external_symps)
         if self.external_symps.shape[0] > 0:
             self.data.drop(
@@ -692,7 +742,7 @@ class InSilicoVA:
                     symp_pos = ext_data.iloc[i] == pos
                     symp_pos = symp_pos.to_numpy(dtype=bool)
                     probs[i, j] = csmf_sub[j] * (prob_sub[symp_pos, j].prod())
-                probs[i, :] = probs[i, :]/sum(probs[i, :])
+                probs[i, :] = probs[i, :] / sum(probs[i, :])
             self.ext_prob = probs
             self.data = self.data[~ext_where]
             if self.subpop is not None:
@@ -708,7 +758,8 @@ class InSilicoVA:
                                             ext_prob_temp.shape[0]) / sum(
                             self.subpop == self.subpop_order_list[i])
             else:
-                self.ext_csmf = self.ext_prob.mean(axis=0) * len(self.ext_id) / n_all
+                self.ext_csmf = self.ext_prob.mean(axis=0) * len(
+                    self.ext_id) / n_all
             if ext_where.sum() > 0 and self.subpop is not None:
                 self.subpop = self.subpop[~ext_where]
         else:
@@ -727,15 +778,203 @@ class InSilicoVA:
         else:
             self._remove_ext_v5()
         if self.data.shape[0] == 0:
-            warnings.warn("All deaths are assigned to external causes."
-                          "A list of external causes is returned instead of "
-                          "an InSilico object.\n",
+            warnings.warn("All deaths are assigned to external causes.  "
+                          "A DataFrame of external causes is returned instead "
+                          "of an InSilico object.\n",
                           UserWarning)
             if self.data_type == "WHO2012":
                 pass
             else:
-                self.results["ID"] = self.ext_id
+                self.results = pd.DataFrame({"ID": self.ext_id})
                 names_external_causes = self.va_causes[self.external_causes]
-                for i in range(len(self.external_causes)):
-                    cause_i = names_external_causes[i]
+                for i in range(len(names_external_causes)):
+                    cause_i = names_external_causes.iloc[i]
                     self.results[cause_i] = self.ext_prob[:, i]
+
+    def _check_missing_all(self):
+        """
+        Remove missing columns from the data (i.e., all values in column are
+        missing) and probbase.
+        """
+        missing_all = []
+        n_iterations = self.data.shape[1] - 1  # ignore ID column
+        for i in range(n_iterations):
+            # increment index by 1 for data (but not for probbase!)
+            if all(self.data.iloc[:, (i + 1)] == "."):
+                missing_all.append(i)
+        if len(missing_all) > 0:
+            missing_all_plus1 = np.array(missing_all) + 1
+            missing_all_names = ", ".join(
+                self.probbase[missing_all_plus1,
+                              int(self.data_type == "WHO2012")])
+            warnings.warn(f"{len(missing_all)} symptoms missing completely "
+                          "and added to missing list. \n List of missing "
+                          f"symptoms: {missing_all_names}\n",
+                          UserWarning)
+            drop_col_names = list(self.data.iloc[:, missing_all_plus1])
+            self.data.drop(columns=drop_col_names, inplace=True)
+            self.prob_orig = np.delete(self.prob_orig, missing_all, axis=0)
+            if self.negate is not None:
+                self.negate = np.delete(self.negate, missing_all, axis=0)
+
+    def _initialize_numerical_matrix(self):
+        if not self.customization_dev:
+            if self.cond_prob_num is None:
+                self.prob_order = self._change_inter(self.prob_orig,
+                                                     order=True,
+                                                     standard=True)
+                self.cond_prob_true = self._change_inter(self.prob_orig,
+                                                         order=False,
+                                                         standard=True)
+            else:
+                self.cond_prob_true = self.prob_orig.copy()
+                self.prob_order = np.ones(self.prob_orig.shape)
+        else:
+            if self.update_cond_prob:
+                self.prob_order = self._change_inter(
+                    self.prob_orig,
+                    order=True,
+                    standard=False,
+                    table_dev=self.table_dev,
+                    table_num_dev=self.table_num_dev)
+                self.cond_prob_true = self._change_inter(
+                    self.prob_orig,
+                    order=False,
+                    standard=False,
+                    table_dev=self.table_dev,
+                    table_num_dev=self.table_num_dev)
+            else:
+                self.cond_prob_true = self.prob_orig.copy()
+                self.prob_order = np.ones(self.prob_orig.shape)
+
+    def _check_data_dimensions(self):
+        if self.data.shape[0] <= 1:
+            raise DataException(
+                "Not enough observations in the sample to run InSilicoVA.\n"
+            )
+        n_symptoms_ok = (self.data.shape[1] - 1) == self.cond_prob_true.shape[
+            0]
+        if n_symptoms_ok is False:
+            raise DataException(
+                "Number of symptoms is not right. \n"
+            )
+        if self.external_sep:
+            self.va_causes_current = self.va_causes[
+                self.external_causes].copy()
+        else:
+            self.va_causes_current = self.va_causes.copy()
+
+    def _check_impossible_pairs(self):
+        """Check impossible pairs of symptoms and causes (for the first nine
+        demographic symptoms (7 age + 2 gender)).  Also, the value saved is
+        the index (starting from 0?)
+
+        format: (ss, cc, 0) if P(cc | ss = y) = 0
+                (ss, cc, 1) if P(cc | ss = n) = 0
+        """
+        impossible = []
+        data_colnames = list(self.data)[1:]
+        impossible_colnames = ["symptom", "probbase_col", "value"]
+        if self.impossible_combination is not None:
+            n_combos = self.impossible_combination.shape[0]
+            impossible_colnames = list(self.impossible_combination)
+
+        if self.exclude_impossible_causes != "none" and self.customization_dev is False:
+            if self.exclude_impossible_causes in ["subset", "subset2"]:
+                if self.data_type == "WHO2012":
+                    demog_set = ["elder", "midage", "adult", "child", "under5",
+                                 "infant", "neonate", "male", "female",
+                                 "magegp1", "magegp2", "magegp3", "died_d1",
+                                 "died_d23", "died_d36", "died_w1", "no_life"]
+                else:
+                    demog_set = ["i019a", "i019b", "i022a", "i022b", "i022c",
+                                 "i022d", "i022e", "i022f", "i022g", "i022h",
+                                 "i022i", "i022j", "i022k", "i022l", "i022m",
+                                 "i022n", "i114o"]
+            else:
+                demog_set = list(self.data)[1:]
+
+            demog_index = [data_colnames.index(i) for i in demog_set if
+                           i in data_colnames]
+            n_causes = self.cond_prob_true.shape[1]
+            for ss in demog_index:
+                for cc in range(n_causes):
+                    if self.cond_prob_true[ss, cc] == 0:
+                        impossible.append([int(cc), int(ss), 0])
+                    if (self.cond_prob_true[ss, cc] == 1 and
+                            self.exclude_impossible_causes.lower() != "interva"):
+                        impossible.append([int(cc), int(ss), 1])
+
+            if self.exclude_impossible_causes == "subset2":
+                # add pregnancy death fix
+                add_impossible = pd.DataFrame(
+                    {impossible_colnames[0]: ["i310o"] * 9})
+                col1_values = ["b_0901", "b_0902", "b_0903", "b_0904",
+                               "b_0905", "b_0906", "b_0907", "b_0908", "b_0999"]
+                add_impossible[impossible_colnames[1]] = col1_values
+                add_impossible[impossible_colnames[2]] = 1
+
+                if self.impossible_combination is None:
+                    self.impossible_combination = add_impossible
+                else:
+                    self.impossible_combination = pd.concat(
+                        [self.impossible_combination, add_impossible],
+                        ignore_index=True)
+                # add prematurity fix
+                ss = None
+                if self.data_type == "WHO2012":
+                    if "born_38" in data_colnames:
+                        ss = data_colnames.index("born_38")
+                        val_only_prem = 0
+                        val_not_prem = 1
+                else:
+                    if "i367a" in data_colnames:
+                        ss = data_colnames.index("i367a")
+                        # if negated, then reverse
+                        val_only_prem = int(self.negate[ss] is True)
+                        val_not_prem = int(self.negate[ss] is False)
+                cc_only_prem = self.va_causes_current == "Prematurity"
+                if ss is not None and sum(cc_only_prem) == 1:
+                    cc_only_index = self.va_causes_current[cc_only_prem].index[
+                        0]
+                    impossible.append([cc_only_index, ss, val_only_prem])
+                cc_not_prem = self.va_causes_current == "Birth asphyxia"
+                if ss is not None and sum(cc_not_prem) == 1:
+                    cc_not_index = self.va_causes_current[cc_not_prem].index[0]
+                    impossible.append([cc_not_index, ss, val_not_prem])
+
+            if self.impossible_combination is not None:
+                for ss, cc, vv in self.impossible_combination.itertuples(
+                        index=False):
+                    if ss in data_colnames and cc in self.prob_orig_colnames:
+                        val = 1 - int(vv)
+                        ss_index = data_colnames.index(ss)
+                        cc_index = \
+                            np.argwhere(self.prob_orig_colnames == cc)[0][0]
+                        impossible.append([cc_index, ss_index, val])
+
+        elif self.impossible_combination is not None:
+            for ii in self.impossible_combination.itertuples(index=False):
+                if ii[0] in data_colnames and ii[1] in self.prob_orig_colnames:
+                    # val = 1 - int(vv)
+                    ss_index = data_colnames.index(ii[0])
+                    cc_index = \
+                        np.argwhere(self.prob_orig_colnames == ii[1])[0][0]
+                    # impossible.append([cc_index, ss_index, val])
+                    impossible.append([cc_index, ss_index])
+        else:
+            # java checks if impossible has 3 columns and sets check impossible
+            # cause flag to False if it has 4 columns
+            impossible.append([0, 0, 0, 0])
+
+        self.impossible = np.array(impossible, dtype=int)
+
+    def _physician_codes(self):
+        if self.phy_code is not None:
+            pass
+        else:
+            # if no physician coding, everything is unknown
+            self.c_phy = 1
+            self.assignment = np.zeros((self.data.shape[0], 1))
+            self.assignment[:, 0] = 1
+            self.va_causes_broader = range(len(self.va_causes_current))

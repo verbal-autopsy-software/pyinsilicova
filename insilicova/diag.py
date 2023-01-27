@@ -10,10 +10,11 @@ from insilicova.exceptions import SamplerException, ArgumentException
 from insilicova.insilicova import InSilico
 from math import gamma, pi
 import numpy as np
-from typing import Union, Dict
+from typing import Union, Dict, List
 from statsmodels.tsa.stattools import acovf
 from statsmodels.api import OLS
 from scipy.special import kv
+from pandas import DataFrame
 
 
 def csmf_diag(csmf: Union[InSilico, list],
@@ -21,7 +22,7 @@ def csmf_diag(csmf: Union[InSilico, list],
               test: str = "heidel",
               verbose: bool = True,
               autoburnin: bool = False,
-              which_sub: Union[None, np.ndarray] = None):
+              which_sub: Union[None, np.ndarray] = None) -> list[DataFrame]:
     """
     Convergence test for fitted InSilico model.
 
@@ -126,30 +127,34 @@ def csmf_diag(csmf: Union[InSilico, list],
     if test == "gelman" and not isinstance(csmf, list):
         raise ArgumentException(
             "Need more than one chain to perform Gelman and Rubin's test.")
-
     # Heidel test
     if test == "heidel":
         testout = []
         conv = 1
         for i in range(len(check_csmf)): # i = 0
-            jt = _heidel_single(check_csmf[i], conv_csmf)
-            testout.append(
-                )
-            conv = conv * testout[i]["stest"] * testout[i]["htest"]
+            out = _heidel_single(check_csmf[i], conv_csmf)
+            testout.append(out)
+            conv = conv * testout["stest"].prod() * testout["htest"].prod()
     # Gelman test
     if test == "gelman":
         raise ArgumentException(
             "'gelman' test has not been implemented yet (use 'heidel').")
+    if not verbose & test == "heidel":
+        return conv
+    else:
+        return testout
 
 
 def _heidel_single(one: np.ndarray,
-                   conv_csmf: float) -> np.ndarray:
+                   conv_csmf: float) -> DataFrame:
     # sort chain by CSMF mean values
     mean = one.mean(axis=0)
     ordered_one = one[:, mean.argsort()[::-1]].copy()
     mean = ordered_one.mean(axis=0)
     ordered_one = ordered_one[:, mean > conv_csmf]
     test = _heidel_diag(ordered_one)
+    # TODO: this needs to be updated for dealing with DataFrame
+    #       see below (_heidel_diag)
     return test
 
 
@@ -165,7 +170,7 @@ def _gelman_diag(x: np.ndarray,
 
 def _heidel_diag(x: np.ndarray,
                  eps: float = 0.1,
-                 pvalue: float = 0.05) -> np.ndarray:
+                 pvalue: float = 0.05) -> DataFrame:
     """
     Ported from R package coda::heidel.diag
     https://CRAN.R-project.org/package=coda
@@ -230,6 +235,7 @@ def _heidel_diag(x: np.ndarray,
                         passed_hw, ybar, halfwidth]
 
     # note: access column names with: HW_mat.dtypes.names
+    # TODO: this needs to return a DataFrame with cause names for each row
     return HW_mat
 
 

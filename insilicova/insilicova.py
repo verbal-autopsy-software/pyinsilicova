@@ -9,6 +9,7 @@ This module contains the class for the InSilicoVA algorithm.
 
 from insilicova.exceptions import ArgumentException, DataException
 from insilicova.utils import get_vadata
+from dataclasses import dataclass
 from typing import Union, Dict
 from vacheck.datacheck5 import datacheck5
 import warnings
@@ -1142,3 +1143,42 @@ class InSilicoVA:
         self._sigma2_last = np.zeros(self._n_sub)
         self._theta_last = np.zeros(
             shape=(self._n_sub, self._cond_prob_true.shape[1]))
+
+    def _sample_posterior(self):
+        pass
+
+    def _parse_result(self):
+        pass
+
+
+@dataclass
+class InSilico:
+    """Class for holding results from InSilicoVA._run()."""
+    id: pd.Series
+    data_final: pd.DataFrame
+    data_checked: pd.DataFrame
+    indiv_prob: np.ndarray
+    csmf: Dict
+    conditional_probs: np.ndarray
+    probbase: np.ndarray
+    missing_symptoms: np.ndarray
+    external: bool
+    external_causes: np.ndarray
+    impossible_causes: np.ndarray
+    update_cond_prob: bool
+    keep_probbase_level: bool
+    datacheck: bool
+    n_sim: int
+    thin: int
+    burnin: int
+    jump_scale: float
+    levels_prior: np.ndarray
+    levels_strength: np.ndarray
+    trunc_min: float
+    trunc_max: float
+    subpop: pd.Series
+    indiv_ci: bool
+    is_customized: bool
+    errors: Dict
+    warnings: Dict
+    data_type: str

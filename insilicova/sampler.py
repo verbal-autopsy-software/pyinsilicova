@@ -12,7 +12,10 @@ import numpy as np
 from scipy.stats import beta
 from random import Random
 from math import exp, log
+from time import time
+from tqdm import tqdm
 
+from sampler import Sampler
 
 class Sampler:
     """InsilicoVA algorithm for assigning cause of death.
@@ -554,7 +557,310 @@ class Sampler:
     # mu: vector initialized in R
     # sigma2: value initialized in R
     def fit(self, dimensions: list, probbase: np.ndarray, probbase_order: np.ndarray, level_values: list, prior_a: list, prior_b: float, jumprange: float, trunc_min: float, trunc_max: float, indic: np.ndarray, subpop: list, contains_missing: int, pool: int, seed: int, N_gibbs: int, burn: int, thin: int, mu: list, sigma2: float, this_is_Unix: bool, useProbbase: bool, isAdded: bool, mu_continue: np.ndarray, sigma2_continue: list, theta_continue: np.ndarray, C_phy: int, broader: list, assignment: np.ndarray, impossible: np.ndarray):
-        pass
+        
+        # initialization
+        N = dimensions[0]   # int
+        S = dimensions[1]   # int
+        C = dimensions[2]   # int
+        N_sub = dimensions[3]   # int
+        N_level = dimensions[4] # int
+        
+        withPhy = C_phy > 1
+        
+        # InsilicoSampler2
+        insilico = Sampler(N, S, C, N_sub, N_level, subpop, probbase, probbase_order, level_values, pool)
+        if withPhy:
+            insilico.initate_phys_coding(C_phy, broader)
+        
+        print("InSilicoVA Sampler Initiated, %d Iterations to Sample\n", N_gibbs)
+        # list of random number generators to use
+        # double random engine
+        sg = np.random.SeedSequence(seed)
+        rngEngine = np.random.Generator(np.random.MT19937(sg))
+        # normal
+        rngN = rngEngine.normal(0.0, 1.0)
+        # gamma
+        rngG = rngEngine.gamma(1.0, 1.0)
+        rand = Random(seed)
+        
+        # calculate the dimension of values to save, and the interval of report (print message on screen
+        N_thin = int((N_gibbs-burn) / (thin + 0.0))
+        n_report = int(max(N_gibbs/20, 100))
+        if N_gibbs < 200:
+            n_report = 50
+        
+        # probbase at each thinned iteration
+        probbase_gibbs = np.zeros((N_thin, S, C))
+        # probbase levels at each thinned iteration
+        levels_gibbs = np.zeros((N_thin, N_level))
+        # csmf at each thinned iteration
+        p_gibbs = np.zeros((N_thin, N_sub, C))
+        # individual probaility at each thinned iteration
+        pnb_mean = np.zeros((N, C))
+        # number of acceptances
+        naccept = [None] * N_sub
+        # current mu
+        mu_now = np.zeros((N_sub, C))
+        # current sigma^2
+        sigma2_now = [None] * N_sub
+        # current theta
+        theta_now = np.zeros((N_sub, C))
+        # current csmf
+        p_now = np.zeros((N_sub, C))
+        
+        # if the chain is the original one, initialize randomly
+        if not isAdded:
+            # initialize values
+            for sub in range(N_sub):
+                mu_now[sub] = mu
+                sigma2_now[sub] = sigma2
+                theta_now[sub][0] = 1
+                expsum = exp(1.0)
+                for c in range(1, C):
+                    theta_now[sub][c] = log(rand.random() * 100.0)
+                    expsum += exp(theta_now[sub][c])
+                for c in range(C):
+                    p_now[sub][c] = exp(theta_now[sub][c]) / expsum
+        else:
+            # if the chain is to continue from a previous one, initialize with the _now values imported
+            for sub in range(N_sub):
+                mu_now[sub] = mu_continue[sub]
+                sigma2_now[sub] = sigma2_continue[sub]
+                theta_now[sub] = theta_continue[sub]
+                # recalculate p from theta
+                expsum = exp(1.0)
+                for c in range(1, C):
+                    expsum += exp(theta_now[sub][c])
+                for c in range(C):
+                    p_now[sub][c] = exp(theta_now[sub][c]) / expsum
+        
+        # check impossible causes?
+        check_impossible = len(impossible[0]) == 3
+        zero_matrix = np.zeros((N, C))
+        for i in range(N):
+            for j in range(C):
+                zero_matrix[i][j] = 1
+        if check_impossible:
+            for i in range(N):
+                for k in range(len(impossible)):
+                    if indic[i][impossible[k][1] - 1] == 1 and impossible[k][2] == 0:
+                        zero_matrix[i][impossible[k][0] - 1] = 0
+                    if indic[i][impossible[k][1] - 1] == 0 and impossible[k][2] == 1:
+                        zero_matrix[i][impossible[k][0] - 1] = 0
+        # check if specific causes are impossible for a whole subpopulation
+        zero_group_matrix = np.zeros((N_sub, C))
+        remove_causes = [None] * N_sub
+        if check_impossible:
+            for j in range(C):
+                for i in range(N):
+                    zero_group_matrix[subpop[i]][j] += zero_matrix[i][j]
+            for j in range(C):
+                for i in range(N_sub):
+                    if zero_group_matrix[i][j] == 0:
+                        zero_group_matrix[i][j] = 0
+                    else:
+                        zero_group_matrix[i][j] = 1
+                    zero_group_matrix[i][j] == 0
+        else:
+            for i in range(N_sub):
+                for j in range(self.C):
+                    zero_group_matrix[i][j] = i
+        
+        # reinitiate after checking impossible
+        if not isAdded:
+            # initalize values
+            for sub in range(N_sub):
+                fix = 0
+                for c in range(1, self.C):
+                    if zero_group_matrix[sub][c] > 0:
+                        fix = c
+                        break
+                theta_now[sub][fix] = 1
+                expsum = exp(1.0)
+                for c in range(fix+1, self.C):
+                    theta_now[sub][c] = log(rand.random() * 100.0)
+                    expsum += exp(theta_now[sub][c] * zero_group_matrix[sub][c])
+                for c in range(self.C):
+                    p_now[sub][c] = exp(theta_now[sub][c] * zero_group_matrix[sub][c])
+        
+        # first time pnb (naive bayes probability) calculation, note it is inverse of R verion
+        pnb = np.empty((self.N, self.C))
+        if not withPhy:
+            pnb = insilico.pnb(1, indic, p_now, subpop, zero_matrix)
+        else:
+            g_new = insilico.sampleY(assignment, rand)
+            pnb = insilico.pnb2(1, indic, p_now, subpop, g_new, zero_matrix)
+        
+        # start loop
+        start = time() * 1000
+        # popup window under non-unix system
+        popup = tqdm(total=N_gibbs)
+        for k in range(N_gibbs):
+            if not this_is_Unix:
+                popup.update(1)
+                popup.refresh()
+            # sample new y vector
+            y_new = insilico.sampleY(pnb, rand)
+            g_new = insilico.sampleY(assignment, rand)
+            
+            # count the appearance of each cause
+            Y = np.array((N_sub, C))
+            for n in range(self.N): Y[subpop[n]][y_new[n]] += 1
+            
+            for sub in range(N_sub):
+                # sample mu
+                mu_mean = 0.0
+                for c in range(self.C): mu_mean += theta_now[sub][c]
+                mu_mean = mu_mean / (self.C - remove_causes[sub] + 0.0)
+                mu_mean = rngN.random()
+                for c in range(self.C):
+                    mu_now[sub][c] = mu_mean
+                
+                # sample sigma2
+                shape = (C - remove_causes[sub] - 1.0) / 2
+                rate2 = 0.0
+                for c in range(self.C): rate2 += (theta_now[sub][c] - mu_now[sub][c] * zero_group_matrix[sub][c]) ** 2
+                
+                sigma2_now[sub] = 1 / rngG.gamma(shape, rate2/2)
+                # sample theta
+                theta_prev = list(theta_now[sub])
+                theta_now[sub] = insilico.thetaBlockUpdate(jumprange, list(mu_now[sub]), sigma2_now[sub], theta_prev, list(Y[sub]), False, rngN, rand, list(zero_group_matrix[sub]))
+                
+                for j in range(len(theta_prev)):
+                    if theta_now[sub][j] != theta_prev[j]:
+                        naccept[sub] += 1
+                        break
+                
+                # calculate phat
+                expsum = 0.0
+                for c in range(self.C):
+                    expsum += exp(theta_now[sub][c]) * zero_group_matrix[sub][c]
+                for c in range(self.C):
+                    p_now[sub][c] = exp(theta_now[sub][c]) * zero_group_matrix[sub][c] / expsum
+                
+            if not useProbbase:
+                insilico.countCurrent(indic, y_new)
+                if pool == 0:
+                    insilico.truncBeta_pool(rand, prior_a, prior_b, trunc_min, trunc_max)
+                elif pool == 1:
+                    insilico.truncBeta(rand, prior_a, prior_b, trunc_min, trunc_max)
+                elif pool == 2:
+                    insilico.truncBeta2(rand, prior_a, prior_b, trunc_min, trunc_max)
+            
+            if not withPhy:
+                pnb = insilico.pnb(1, indic, p_now, subpop, zero_matrix)
+            else:
+                pnb = insilico.pnb2(1, indic, p_now, subpop, g_new, zero_matrix)
+            
+            # format output message
+            if k % 10 == 0: print(".")
+            if k % n_report == 0 and k != 0:
+                # output for Unix system
+                now = time() * 1000.0
+                message = f"Iteration: {k} "
+                for sub in range(N_sub):
+                    ratio = naccept[sub] / (k+0.0)
+                    message += f"Sub-population {sub} acceptance ratio: {ratio:.2f} "
+                print(message)
+                print(f"{(now-start)/1000.0/60.0: .2f}min elapsed, {(now-start)/1000.0/60.0/(k+0.0) * (N_gibbs-k): .2f}min remaining ")
+                
+                # output for windows pop up window
+                if not this_is_Unix:
+                    popup.set_description("{k} {message}")
+            
+            # note this condition includes the first iteration
+            if k >= burn and (k-burn+1) % thin == 0:
+                save = int(k-burn+1 / thin) - 1
+                
+                for d1 in range(self.N):
+                    for d2 in range(self.C):
+                        pnb_mean[d1][d2] += pnb[d1][d2]
+                for d1 in range(N_sub):
+                    for d2 in range(self.C):
+                        p_gibbs[save][d1][d2] = p_now[d1][d2]
+                if pool == 0:
+                    for d1 in range(N_level):
+                        levels_gibbs[save][d1] = insilico.level_values[d1]
+                else:
+                    for d1 in range(self.S):
+                        for d2 in range(self.C):
+                            probbase_gibbs[save][d1][d2] = insilico.probbase[d1][d2]
+        
+        # close windows pop up window
+        # if not this_is_Unix:
+        #     not needed, because tqdm progress bar is in console
+        
+        print("\nOverall acceptance ratio")
+        for sub in range(N_sub):
+            ratio = naccept[sub] / (N_gibbs+0.0)
+            print(f"Sub-population {sub} : {ratio: .4f}")
+            
+        # The outcome is vector of
+        #   0. scalar of N_thin
+        #       1. CSMF at each iteration N_sub * C * N_thin
+        #   2. Individual prob mean N * C
+        #   4. last time configuration N_sub * (C + C + 1)
+        #   3. probbase at each iteration
+        
+        N_out = 1 + N_sub * self.C * N_thin + self.N * self.C + N_sub * (self.C * 2 + 1)
+        if pool == 0:
+            N_out += N_level * N_thin
+        else:
+            N_out += self.S * self.C * N_thin
+        
+        # initialize the matrix for output
+        parameters = [None] * N_out
+        # save CSMF at each iteration
+        # counter of which column is
+        counter = 0
+        # save N_thin
+        parameters[0] = N_thin
+        counter = 1
+        # save p_gibbs
+        for sub in range(N_sub):
+            for k in range(N_thin):
+                for c in range(self.C):
+                    parameters[counter] = p_gibbs[k][sub][c]
+                    counter += 1
+        # save pnb_gibbs, need normalize here
+        for n in range(self.N):
+            for c in range(self.C):
+                parameters[counter] = pnb_mean[n][c] / (N_thin + 0.0)
+                counter += 1
+        # save probbase at each iteration
+        if pool != 0:
+            for c in range(self.C):
+                for s in range(self.S):
+                    for k in range(N_thin):
+                        parameters[counter] = probbase_gibbs[k][s][c]
+                        counter += 1
+        else:
+            for k in range(N_thin):
+                for l in range(1, N_level+1):
+                    parameters[counter] = levels_gibbs[k][l-1]
+                    counter += 1
+        
+        # save output without N_thin rows
+        # only using the first row
+        # save mu_now
+        for sub in range(N_sub):
+            for c in range(self.C):
+                parameters[counter] = mu_now[sub][c]
+                counter += 1
+        # save sigma2_now
+        for sub in range(N_sub):
+            parameters[counter] = sigma2_now[sub]
+            counter += 1
+        # save theta_now
+        for sub in range(N_sub):
+            for c in range(self.C):
+                parameters[counter] = theta_now[sub][c]
+                counter += 1
+        
+        
+        print("Organizing output, might take a moment...")
+        
+        return(parameters)
 
     # @param DontAsk: M by 8 matrix (java index + 1, 0 if not exist)
     # @param AskIf: M by 2 matrix (java index + 1, 0 if not exist)

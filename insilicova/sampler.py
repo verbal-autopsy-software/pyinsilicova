@@ -880,11 +880,189 @@ class Sampler:
         warningfile = "warnings.txt"
         return self.Datacheck(DontAsk, AskIf, zero_to_missing_list, data, ids, symps, warningfile)
 
-    def IndivProb(self, data: np.ndarray, impossible: np.ndarray, csmf0: list, subpop: list, condprob0: list, p0: float, p1: float, Nsub: int, Nitr: int, C: int, S: int):
-        pass
+    def IndivProb(self, data: np.ndarray,
+                  impossible: np.ndarray,
+                  csmf0: list,
+                  subpop: list,
+                  condprob0: list,
+                  p0: float,
+                  p1: float,
+                  Nsub: int,
+                  Nitr: int,
+                  C: int,
+                  S: int) -> np.ndarray:
 
-    def AggIndivProb(self, data: np.ndarray, impossible: np.ndarray, csmf0: list, subpop: list, condprob0: list, group: list, Ngroup: list, p0: float, p1: float, Nsub: int, Nitr: int, C: int, S: int):
-        pass
+        N = data.shape[0]
+        csmf = np.zeros((Nsub, Nitr, C))
+        condprob = np.zeros((Nitr, S, C))
+        for i in range(Nsub):
+            for j in range(Nitr):
+                for k in range(C):
+                    csmf[i, j, k] = csmf0[k * Nsub * Nitr + j * Nsub + i]
 
-    def IndivProbSample(self, data: np.ndarray, impossible: np.ndarray, csmf0: list, subpop: list, condprob0: list, p0: float, p1: float, Nsub: int, Nitr: int, C: int, S: int):
-        pass
+        for i in range(Nitr):
+            for j in range(S):
+                for k in range(C):
+                    condprob[i, j, k] = condprob0[k * Nitr * S + j * Nitr + i]
+
+        zero_matrix = np.ones((N, C))
+        if impossible.shape[1] == 2:
+            for i in range(N):
+                for k in range(impossible.shape[0]):
+                    if data[i, impossible[k, 1] - 1] == 1:
+                        zero_matrix[i, impossible[k, 0] - 1] = 0
+        allp = np.zeros((N, C, Nitr))
+        for i in range(N):
+            sub = subpop[i] - 1
+            for t in range(Nitr):
+                sum_allp = 0
+                for c in range(C):
+                    allp[i, c, t] = csmf[sub, t, c] * zero_matrix[i, c]
+                    for s in range(S):
+                        # if condprob[t, s, c] == 0:
+                        #     print(".")
+                        if data[i, s] == 1:
+                            allp[i, c, t] *= condprob[t, s, c]
+                        elif data[i, s] == 0:
+                            allp[i, c, t] *= (1 - condprob[t, s, c])
+                    sum_allp += allp[i, c, t]
+                for c in range(C):
+                    if sum_allp == 0:
+                        allp[i, c, t] = allp[i, c, t]
+                    else:
+                        allp[i, c, t] = allp[i, c, t] / sum_allp
+        out = np.zeros((N*4, C))
+        for i in range(N):
+            for c in range(C):
+                out[i, c] = allp[i, c, :].mean()
+                out[i+N, c] = np.percentile(allp[i, c, :], 0.5)
+                out[i + N*2, c] = np.percentile(allp[i, c, :], p0)
+                out[i + N*3, c] = np.percentile(allp[i, c, :], p1)
+
+        return out
+
+    def AggIndivProb(self,
+                     data: np.ndarray,
+                     impossible: np.ndarray,
+                     csmf0: list,
+                     subpop: list,
+                     condprob0: list,
+                     group: list,
+                     Ngroup: list,
+                     p0: float,
+                     p1: float,
+                     Nsub: int,
+                     Nitr: int,
+                     C: int,
+                     S: int) -> np.ndarray:
+
+        N = data.shape[0]
+        csmf = np.zeros((Nsub, Nitr, C))
+        condprob = np.zeros((Nitr, S, C))
+        for i in range(Nsub):
+            for j in range(Nitr):
+                for k in range(C):
+                    csmf[i, j, k] = csmf0[k * Nsub * Nitr + j * Nsub + i]
+
+        for i in range(Nitr):
+            for j in range(S):
+                for k in range(C):
+                    condprob[i, j, k] = condprob0[k * Nitr * S + j * Nitr + i]
+
+        zero_matrix = np.ones((N, C))
+        if impossible.shape[1] == 2:
+            for i in range(N):
+                for k in range(impossible.shape[0]):
+                    if data[i, impossible[k, 1] - 1] == 1:
+                        zero_matrix[i, impossible[k, 0] - 1] = 0
+        allp = np.zeros((Ngroup, C, Nitr))
+        size = np.zeros(Ngroup, dtype=int)
+        for i in range(N):
+            # get subpop index for death i
+            sub = subpop[i] - 1
+            g = group[i] - 1
+            size[g] += 1
+
+            for t in range(Nitr):
+                tmp = float(C)
+                sum_allp = 0
+                for c in range(C):
+                    tmp[c] = csmf[sub, t, c] * zero_matrix[i, c]
+                    for s in range(S):
+                        if data[i, s] == 1:
+                            tmp[c] *= condprob[t, s, c]
+                        elif data[i, s] == 0:
+                            tmp[c] *= (1 - condprob[t, s, c])
+                    sum_allp += tmp[c]
+                for c in range(C):
+                    if sum_allp == 0:
+                        allp[g, c, t] = tmp[c]
+                    else:
+                        allp[g, c, t] = tmp[c] / sum_allp
+
+        out = np.zeros((Ngroup*4, C+1))
+        for i in range(Ngroup):
+            for c in range(C):
+                out[i, c] = allp[i, c, :].mean() / size[i]
+                out[i + Ngroup, c] = np.percentile(allp[i, c, :], 0.5) / size[i]
+                out[i + Ngroup*2, c] = np.percentile(allp[i, c, :], p0) / size[i]
+                out[i + Ngroup*3, c] = np.percentile(allp[i, c, :], p1) / size[i]
+            out[i][C] = size[i]
+            out[i + Ngroup, C] = size[i]
+            out[i + Ngroup*2, C] = size[i]
+            out[i + Ngroup*3, C] = size[i]
+
+        return out
+
+    def IndivProbSample(self,
+                        data: np.ndarray,
+                        impossible: np.ndarray,
+                        csmf0: list,
+                        subpop: list,
+                        condprob0: list,
+                        Nsub: int,
+                        Nitr: int,
+                        C: int,
+                        S: int) -> np.ndarray:
+
+        N = data.shape[0]
+        csmf = np.zeros((Nsub, Nitr, C))
+        condprob = np.zeros((Nitr, S, C))
+        for i in range(Nsub):
+            for j in range(Nitr):
+                for k in range(C):
+                    csmf[i, j, k] = csmf0[k * Nsub * Nitr + j * Nsub + i]
+
+        for i in range(Nitr):
+            for j in range(S):
+                for k in range(C):
+                    condprob[i, j, k] = condprob0[k * Nitr * S + j * Nitr + i]
+
+        zero_matrix = np.ones((N, C))
+        if impossible.shape[1] == 2:
+            for i in range(N):
+                for k in range(impossible.shape[0]):
+                    if data[i, impossible[k, 1] - 1] == 1:
+                        zero_matrix[i, impossible[k, 0] - 1] = 0
+        allp = np.zeros((N, C, Nitr))
+        for i in range(N):
+            sub = subpop[i] - 1
+            for t in range(Nitr):
+                sum_allp = 0
+                for c in range(C):
+                    allp[i, c, t] = csmf[sub, t, c] * zero_matrix[i, c]
+                    for s in range(S):
+                        # if condprob[t, s, c] == 0:
+                        #     print(".")
+                        if data[i, s] == 1:
+                            allp[i, c, t] *= condprob[t, s, c]
+                        elif data[i, s] == 0:
+                            allp[i, c, t] *= (1 - condprob[t, s, c])
+                    sum_allp += allp[i, c, t]
+                for c in range(C):
+                    if sum_allp == 0:
+                        allp[i, c, t] = allp[i, c, t]
+                    else:
+                        allp[i, c, t] = allp[i, c, t] / sum_allp
+
+        return allp

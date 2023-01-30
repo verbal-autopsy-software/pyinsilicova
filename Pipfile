@@ -8,10 +8,12 @@ vacheck = {version=">=0.0.2"}
 interva = {version="*"}
 pandas = {version="*"}
 numpy = {version="*"}
+statsmodels = "*"
+scipy = "*"
 
 [dev-packages]
 pytest = {version="*"}
 
 [requires]
 python_version = "3.10"
-python_full_version = "3.10.4"
+python_full_version = "3.10.9"

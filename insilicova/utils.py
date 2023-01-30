@@ -23,7 +23,7 @@ DATA_DICT = {"causetext": ("Translation of cause-of-death abbreviation codes"
                           "  There are 60 causes and 245 symptoms"),
              "condprobnum": ("Condition probability matrix used by InterVA4-2"
                              " (60 causes and 245 symptoms)."),
-             "probbase": ("Conditional probabilities of symptoms given the "
+             "_probbase": ("Conditional probabilities of symptoms given the "
                           "cause of death with the data check rules. "
                           "The values are from InterVA4-2."),
              "probbaseV3": ("Conditional probabilities of symptoms given the "

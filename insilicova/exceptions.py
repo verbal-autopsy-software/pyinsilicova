@@ -21,3 +21,8 @@ class ArgumentException(InSilicoVAException):
 class DataException(InSilicoVAException):
     """Exception involving VA data passed to InSilicoVA."""
     pass
+
+
+class SamplerException(InSilicoVAException):
+    """Exception involving InSilicoVA sampler."""
+    pass

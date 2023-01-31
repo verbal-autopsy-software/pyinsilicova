@@ -169,19 +169,23 @@ class Sampler:
             csmf_sub: np.ndarray, subpop: list,
             zero_matrix: np.ndarray) -> np.ndarray:
         # initialize p.nb matrix to p.hat
-        nb = np.zeros((self.N, self.C))
+        # nb = np.zeros((self.N, self.C))
+        nb = np.empty((self.N, self.C))
         # pnb_{nc} <- csmf_{subpop_n, c}
         for n in range(self.N):
-            for c in range(self.C):
-                nb[n, c] = csmf_sub[subpop[n], c] * zero_matrix[n, c]
+            # for c in range(self.C):
+            #     nb[n, c] = csmf_sub[subpop[n], c] * zero_matrix[n, c]
+            nb[n] = csmf_sub[subpop[n]] * zero_matrix[n]
         # calculate posterior
         for n in range(self.N):
             # find which symptoms are not missing for this death
             # nomissing = list of int
             nomissing = []
-            for s in range(len(indic[n])):
-                if indic[n, s] >= 0:
-                    nomissing.append(s)
+            # for s in range(len(indic[n])):
+                # if indic[n, s] >= 0:
+                #     nomissing.append(s)
+            s_extend = np.where(indic[n] >= 0)[0]
+            nomissing.extend(s_extend.tolist())
             # loop over cause-symptoms combination to calculate naive bayes prob
             for c in range(self.C):
                 for s in nomissing:
@@ -827,22 +831,26 @@ class Sampler:
 
             # note this condition includes the first iteration
             if k >= burn and (k - burn + 1) % thin == 0:
-                save = int(k - burn + 1 / thin) - 1
+                save = int((k - burn + 1) / thin) - 1
 
-                for d1 in range(self.N):
-                    for d2 in range(self.C):
-                        pnb_mean[d1][d2] += pnb[d1][d2]
-                for d1 in range(N_sub):
-                    for d2 in range(self.C):
-                        p_gibbs[save][d1][d2] = p_now[d1][d2]
+                # for d1 in range(self.N):
+                #     for d2 in range(self.C):
+                #         pnb_mean[d1][d2] += pnb[d1][d2]
+                pnb_mean = pnb_mean + pnb
+                # for d1 in range(N_sub):
+                #     for d2 in range(self.C):
+                #         p_gibbs[save][d1][d2] = p_now[d1][d2]
+                p_gibbs[save] = p_now.copy()
                 if pool == 0:
-                    for d1 in range(N_level):
-                        levels_gibbs[save][d1] = insilico.level_values[d1]
+                    # for d1 in range(N_level):
+                    #     levels_gibbs[save][d1] = insilico.level_values[d1]
+                    levels_gibbs[save] = insilico.level_values.copy()
                 else:
-                    for d1 in range(self.S):
-                        for d2 in range(self.C):
-                            probbase_gibbs[save][d1][d2] = \
-                                insilico.probbase[d1][d2]
+                    # for d1 in range(self.S):
+                    #     for d2 in range(self.C):
+                    #         probbase_gibbs[save][d1][d2] = \
+                    #             insilico.probbase[d1][d2]
+                    probbase_gibbs[save] = insilico.probbase.copy()
 
         # close windows pop up window
         # if not this_is_Unix:

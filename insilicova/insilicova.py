@@ -10,6 +10,7 @@ This module contains the class for the InSilicoVA algorithm.
 from insilicova.exceptions import ArgumentException, DataException
 from insilicova.utils import get_vadata
 from insilicova.sampler import Sampler
+from insilicova.diag import csmf_diag
 from dataclasses import dataclass
 from typing import Union, Dict
 from vacheck.datacheck5 import datacheck5
@@ -189,6 +190,7 @@ class InSilicoVA:
         self._sigma2_last: np.ndarray
         self._theta_last: np.ndarray
         self._keep_prob: bool = not self.update_cond_prob
+        # attributes set by self._sample_posterior()
 
         # results (should a run() _method return an InSilicoVA data object?)
         self.results = None
@@ -238,6 +240,7 @@ class InSilicoVA:
                 self._get_subpop_info()
             self._initialize_indicator_matrix()
             self._initialize_parameters()
+            self._sample_posterior()
 
     def _change_data_coding(self):
         if self.data_type == "WHO2016":
@@ -1185,28 +1188,89 @@ class InSilicoVA:
         broader = self._va_causes_broader
         assignment = self._assignment
         impossible = self._impossible
-        parameters = sampler.fit(dimensions=dimensions,
-                                 probbase=self._cond_prob.copy(),
-                                 probbase_order=self._prob_order.copy(),
-                                 level_values=level_values, prior_a=prior_a,
-                                 prior_b=prior_b, jumprange=jumprange,
-                                 trunc_min=trunc_min, trunc_max=trunc_max,
-                                 indic=indic, subpop=subpop,
-                                 contains_missing=contains_missing, pool=pool,
-                                 seed=seed, N_gibbs=N_gibbs, burn=burn,
-                                 thin=thin, mu=mu, sigma2=sigma2,
-                                 this_is_Unix=this_is_Unix,
-                                 useProbbase=useProbbase, isAdded=isAdded,
-                                 mu_continue=mu_continue,
-                                 sigma2_continue=sigma2_continue,
-                                 theta_continue=theta_continue, C_phy=C_phy,
-                                 broader=broader, assignment=assignment,
-                                 impossible=impossible)
-        jt = 0
+        fit = sampler.fit(dimensions=dimensions,
+                          probbase=self._cond_prob.copy(),
+                          probbase_order=self._prob_order.copy(),
+                          level_values=level_values, prior_a=prior_a,
+                          prior_b=prior_b, jumprange=jumprange,
+                          trunc_min=trunc_min, trunc_max=trunc_max,
+                          indic=indic, subpop=subpop,
+                          contains_missing=contains_missing, pool=pool,
+                          seed=seed, N_gibbs=N_gibbs, burn=burn,
+                          thin=thin, mu=mu, sigma2=sigma2,
+                          this_is_Unix=this_is_Unix,
+                          useProbbase=useProbbase, isAdded=isAdded,
+                          mu_continue=mu_continue,
+                          sigma2_continue=sigma2_continue,
+                          theta_continue=theta_continue, C_phy=C_phy,
+                          broader=broader, assignment=assignment,
+                          impossible=impossible)
+        fit_results = {"N_sub": N_sub, "C": C, "S": S, "N_level": N_level,
+                       "pool": pool, "fit": fit}
+        results = self._parse_result(fit_results)
 
-    def _parse_result(self):
-        pass
+    def _parse_result(self, fit_results: Dict) -> Dict:
+        n = self.data.shape[0]
+        n_sub = fit_results["N_sub"]
+        c = fit_results["C"]
+        s = fit_results["S"]
+        n_level = fit_results["N_level"]
+        pool = fit_results["pool"]
+        fit = fit_results["fit"]
+        counter = 0
+        csmf_sub = None
+        p_hat = None
+        probbase_gibbs = None
+        level_gibbs = None
 
+        # extract N_thin
+        n_thin = fit[0]
+        counter += 1
+        # extract CSMF
+        if n_sub > 1:
+            csmf_sub = []
+            for sub in range(n_sub):
+                csmf_list = fit[counter:(counter + c * n_thin)]
+                csmf_array = np.array(csmf_list).reshape((n_thin, c))
+                csmf_sub.append(csmf_array)
+                counter = counter + (c * n_thin)
+        else:
+            p_hat = fit[counter:(counter + c * n_thin)]
+            p_hat = np.array(p_hat).reshape((n_thin, c))
+            counter = counter + (c * n_thin)
+        # extract individual probabilities
+        p_indiv = fit[counter:(counter + n*c)]
+        p_indiv = np.array(p_indiv).reshape((n, c))
+        counter = counter + (n * c)
+        # extract probbase
+        if pool != 0:
+            probbase_gibbs = fit[counter:(counter + s * c * n_thin)]
+            # array(..., dim = c(a,b,c))
+            # what it does is for each c, fill column
+            # i.e., c(x[1,1,1], x[2,1,1], x[1,2,1], ...)
+            # i.e. in Java, loop in the  order of C.j -> S.j -> N_thin
+            probbase_gibbs = np.array(probbase_gibbs).reshape((n_thin, s, c),
+                                                              order="F")
+            counter = counter + (s * n * n_thin)
+        else:
+            level_gibbs = fit[counter:(counter + n_level * n_thin)]
+            level_gibbs = np.array(level_gibbs).reshape((n_thin, n_level))
+            counter = counter + (n_level * n_thin)
+        # find last time configurations
+        mu_last = fit[counter:(counter + n_sub*c)]
+        mu_last = np.array(mu_last).reshape((n_sub, c))
+        counter = counter + (n_sub * c)
+        sigma2_last = fit[counter:(counter + n_sub)]
+        counter = counter + n_sub
+        theta_last = fit[counter:(counter + n_sub*c)]
+        theta_last = np.array(theta_last).rehape((n_sub, c))
+        counter = counter + (n_sub * c)
+
+        return {"csmf_sub": csmf_sub, "p_hat": p_hat, "p_indiv": p_indiv,
+                "probbase_gibbs": probbase_gibbs,
+                "levels_gibbs": level_gibbs,
+                "mu_last": mu_last, "sigma2_last": sigma2_last,
+                "theta_last": theta_last}
 
 @dataclass
 class InSilico:

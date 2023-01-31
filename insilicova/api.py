@@ -7,11 +7,10 @@ insilicova.insilicova
 This module contains the class for the InSilicoVA algorithm.
 """
 
-from insilicova.exceptions import ArgumentException, DataException
-from insilicova.utils import get_vadata
-from insilicova.sampler import Sampler
-from insilicova.diag import csmf_diag
-from dataclasses import dataclass
+from .exceptions import ArgumentException, DataException
+from .utils import get_vadata
+from .sampler import Sampler
+from .diag import csmf_diag
 from typing import Union, Dict
 from vacheck.datacheck5 import datacheck5
 import warnings
@@ -824,7 +823,7 @@ class InSilicoVA:
         if self.data.shape[0] == 0:
             warnings.warn("All deaths are assigned to external causes.  "
                           "A DataFrame of external causes is returned instead "
-                          "of an InSilico object.\n",
+                          "of an InSilicoVA object.\n",
                           UserWarning)
             if self.data_type == "WHO2012":
                 pass
@@ -1208,6 +1207,8 @@ class InSilicoVA:
         fit_results = {"N_sub": N_sub, "C": C, "S": S, "N_level": N_level,
                        "pool": pool, "fit": fit}
         results = self._parse_result(fit_results)
+        # check convergence
+
 
     def _parse_result(self, fit_results: Dict) -> Dict:
         n = self.data.shape[0]
@@ -1271,35 +1272,3 @@ class InSilicoVA:
                 "levels_gibbs": level_gibbs,
                 "mu_last": mu_last, "sigma2_last": sigma2_last,
                 "theta_last": theta_last}
-
-@dataclass
-class InSilico:
-    """Class for holding results from InSilicoVA._run()."""
-    id: pd.Series
-    data_final: pd.DataFrame
-    data_checked: pd.DataFrame
-    indiv_prob: np.ndarray
-    csmf: Dict
-    conditional_probs: np.ndarray
-    probbase: np.ndarray
-    missing_symptoms: np.ndarray
-    external: bool
-    external_causes: np.ndarray
-    impossible_causes: np.ndarray
-    update_cond_prob: bool
-    keep_probbase_level: bool
-    datacheck: bool
-    n_sim: int
-    thin: int
-    burnin: int
-    jump_scale: float
-    levels_prior: np.ndarray
-    levels_strength: np.ndarray
-    trunc_min: float
-    trunc_max: float
-    subpop: pd.Series
-    indiv_ci: bool
-    is_customized: bool
-    errors: Dict
-    warnings: Dict
-    data_type: str

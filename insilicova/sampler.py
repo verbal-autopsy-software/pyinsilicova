@@ -57,7 +57,7 @@ class Sampler:
     :type catmap: dictionary
     """
 
-    # Initialization of InSilico Sampler
+    # Initialization of InSilicoVA Sampler
     def __init__(self, N: int, S: int, C: int, N_sub: int, N_level: int,
                  subpop: list, probbase: np.ndarray,
                  probbase_order: np.ndarray,

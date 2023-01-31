@@ -12,7 +12,7 @@ from pprint import pprint
 from pkgutil import get_data
 from io import BytesIO
 from pandas import read_csv, DataFrame
-from insilicova.exceptions import InSilicoVAException
+from .exceptions import InSilicoVAException
 
 
 DATA_DICT = {"causetext": ("Translation of cause-of-death abbreviation codes"

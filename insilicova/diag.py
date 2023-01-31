@@ -6,8 +6,8 @@ insilicova.diag
 
 This module contains functions that check if the CSMF chains have converged.
 """
-from insilicova.exceptions import SamplerException, ArgumentException
-from insilicova.insilicova import InSilico
+from .exceptions import SamplerException, ArgumentException
+from .structures import InSilico
 from math import gamma, pi
 import numpy as np
 from typing import Union, Dict, List
@@ -24,7 +24,7 @@ def csmf_diag(csmf: Union[InSilico, list],
               autoburnin: bool = False,
               which_sub: Union[None, np.ndarray] = None) -> list[DataFrame]:
     """
-    Convergence test for fitted InSilico model.
+    Convergence test for fitted InSilicoVA model.
 
     Produce convergence test for CSMFs from fitted
     :class:`InSilicoVA <insilicova.insilicova.InSilicoVA>` objects.

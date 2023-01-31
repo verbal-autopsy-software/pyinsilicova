@@ -10,6 +10,7 @@ pandas = {version="*"}
 numpy = {version="*"}
 statsmodels = "*"
 scipy = "*"
+tqdm = "*"
 
 [dev-packages]
 pytest = {version="*"}

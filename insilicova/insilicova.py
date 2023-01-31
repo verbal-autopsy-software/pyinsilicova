@@ -9,6 +9,7 @@ This module contains the class for the InSilicoVA algorithm.
 
 from insilicova.exceptions import ArgumentException, DataException
 from insilicova.utils import get_vadata
+from insilicova.sampler import Sampler
 from dataclasses import dataclass
 from typing import Union, Dict
 from vacheck.datacheck5 import datacheck5
@@ -17,6 +18,7 @@ import os
 import pandas as pd
 import numpy as np
 from collections import defaultdict
+from platform import system
 
 VALID_DATA_TYPES = ("WHO2016", "WHO2012")
 VALID_EXCLUDE_IMPOSSIBLE_CAUSE = (
@@ -1145,7 +1147,62 @@ class InSilicoVA:
             shape=(self._n_sub, self._cond_prob_true.shape[1]))
 
     def _sample_posterior(self):
-        pass
+        N = self.data.shape[0]
+        S = self.data.shape[1] - 1
+        C = self._cond_prob_true.shape[1]
+        N_sub = len(self._sublist)
+        N_level = sum(self._level_exist)
+        subpop = self._subpop_numeric.copy()
+        probbase = self._cond_prob.copy()
+        probbase_order = self._prob_order.copy()
+        level_values = self._dist.tolist()
+        pool = int(not self.keep_probbase_level + self._probbase_by_symp_dev)
+        sampler = Sampler(N=N, S=S, C=C, N_sub=N_sub, N_level=N_level,
+                          subpop=subpop, probbase=probbase,
+                          probbase_order=probbase_order,
+                          level_values=level_values, pool=pool)
+        dimensions = [N, S, C, N_sub, N_level]
+        prior_a = self.levels_prior.copy()
+        prior_b = self._prior_b_cond
+        jumprange = self.jump_scale
+        trunc_min = self.trunc_min
+        trunc_max = self.trunc_max
+        indic = self._indic.copy()
+        contains_missing = self._contains_missing
+        seed = self.seed
+        N_gibbs = self._n_gibbs
+        burn = self.burnin
+        thin = self.thin
+        mu = self._mu
+        sigma2 = self._sigma2
+        this_is_Unix = not system() == "Windows"
+        useProbbase = self._keep_prob
+        isAdded = False
+        mu_continue = self._mu_last
+        sigma2_continue = self._sigma2_last
+        theta_continue = self._theta_last
+        C_phy = self._c_phy
+        broader = self._va_causes_broader
+        assignment = self._assignment
+        impossible = self._impossible
+        parameters = sampler.fit(dimensions=dimensions,
+                                 probbase=self._cond_prob.copy(),
+                                 probbase_order=self._prob_order.copy(),
+                                 level_values=level_values, prior_a=prior_a,
+                                 prior_b=prior_b, jumprange=jumprange,
+                                 trunc_min=trunc_min, trunc_max=trunc_max,
+                                 indic=indic, subpop=subpop,
+                                 contains_missing=contains_missing, pool=pool,
+                                 seed=seed, N_gibbs=N_gibbs, burn=burn,
+                                 thin=thin, mu=mu, sigma2=sigma2,
+                                 this_is_Unix=this_is_Unix,
+                                 useProbbase=useProbbase, isAdded=isAdded,
+                                 mu_continue=mu_continue,
+                                 sigma2_continue=sigma2_continue,
+                                 theta_continue=theta_continue, C_phy=C_phy,
+                                 broader=broader, assignment=assignment,
+                                 impossible=impossible)
+        jt = 0
 
     def _parse_result(self):
         pass

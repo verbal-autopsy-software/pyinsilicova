@@ -8,7 +8,7 @@ This module contains data structures for results.
 """
 
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, Union
 import pandas as pd
 import numpy as np
 
@@ -44,3 +44,6 @@ class InSilico:
     errors: Dict
     warnings: Dict
     data_type: str
+    indiv_prob_median: Union[np.ndarray, None] = None
+    indiv_prob_upper: Union[np.ndarray, None] = None
+    indiv_prob_lower: Union[np.ndarray, None] = None

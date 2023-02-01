@@ -172,10 +172,14 @@ class Sampler:
         # nb = np.zeros((self.N, self.C))
         nb = np.empty((self.N, self.C))
         # pnb_{nc} <- csmf_{subpop_n, c}
-        for n in range(self.N):
-            # for c in range(self.C):
-            #     nb[n, c] = csmf_sub[subpop[n], c] * zero_matrix[n, c]
-            nb[n] = csmf_sub[subpop[n]] * zero_matrix[n]
+        # for n in range(self.N):
+        #     # for c in range(self.C):
+        #     #     nb[n, c] = csmf_sub[subpop[n], c] * zero_matrix[n, c]
+        subpop_unique = np.unique(subpop)
+        for n in subpop_unique:
+            tmp_index = np.where(subpop == n)[0]
+            nb[tmp_index] = csmf_sub[n] * zero_matrix[tmp_index]
+
         # calculate posterior
         for n in range(self.N):
             # find which symptoms are not missing for this death
@@ -194,7 +198,10 @@ class Sampler:
                     else:
                         nb[n, c] *= (1 - self.probbase[s, c])
             # normalization
-            nb[n] = np.linalg.norm(nb[n])
+            # nb[n] = np.linalg.norm(nb[n])
+            nb[n] = nb[n]/sum(nb[n])
+        # nb = nb/nb.sum(axis=1)[:, None]
+        # nb = np.nan_to_num(nb)
         return nb
 
     # function to calculate p.nb with sub-population and physician coding

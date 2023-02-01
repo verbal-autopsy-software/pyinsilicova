@@ -71,6 +71,7 @@ class InSilicoVA:
                  groupcode: bool = False,
                  run: bool = True) -> None:
 
+        # TODO: unless using a lot of data, lists might be faster than np.array
         # instance attributes from arguments
         self.data = data.copy()
         self.data_type = data_type
@@ -135,16 +136,20 @@ class InSilicoVA:
         self._subpop_order_list: list
         self._probbase_dev: pd.DataFrame  # not yet implemented
         self._gstable_dev: pd.Series  # not yet implemented
-        # attributes set by self.datacheck()
+        # attributes set by self.remove_bad()
         self._error_log: Dict[str, list] = defaultdict(list)
+        # attributes set by self.datacheck()
         self._data_checked: pd.DataFrame
-        self._vacheck_log: Dict[str, list] = {"first_pass": [], "second_pass": []}
+        self._warning: Dict[str, list] = {"first_pass": [], "second_pass": []}
         # attributes set by self._remove_ext()
         self._ext_sub: pd.Series
         self._ext_id: pd.Series
         self._ext_cod: np.ndarray
         self._ext_csmf: dict
         self._ext_prob: np.ndarray
+        self._ext_cod: Union[None, np.ndarray]
+        # attributes set by self._check_missing_all
+        self._missing_all: list
         # attributes set by self._initialize_numerical_matrix()
         self._cond_prob_true: np.ndarray
         self._prob_order: np.ndarray
@@ -192,9 +197,8 @@ class InSilicoVA:
         self._keep_prob: bool = not self.update_cond_prob
         # attributes set by self._sample_posterior()
         self._posterior_results: Dict
-
-        # results (should a run() _method return an InSilicoVA data object?)
-        self.results = None
+        # attributes set by self._prepare_results()
+        self.results: InSilico
 
         # attributes for future use? (unused in R code)
         self._probbase_by_symp_dev: bool = False
@@ -242,6 +246,7 @@ class InSilicoVA:
             self._initialize_indicator_matrix()
             self._initialize_parameters()
             self._sample_posterior()
+            self._return_results()
 
     def _change_data_coding(self):
         if self.data_type == "WHO2016":
@@ -672,17 +677,17 @@ class InSilicoVA:
             if sum(data_num[i, age_cols]) < 1:
                 drop_rows.add(i)
                 tmp_id = self.data.iat[i, 0]
-                self._error_log[tmp_id].append(
+                self._warning[tmp_id].append(
                     "Error in age indicator: not specified")
             if sum(data_num[i, sex_cols]) < 1:
                 drop_rows.add(i)
                 tmp_id = self.data.iat[i, 0]
-                self._error_log[tmp_id].append(
+                self._warning[tmp_id].append(
                     "Error in sex indicator: not specified")
             if sum(data_num[i, ind_cols]) < 1:
                 drop_rows.add(i)
                 tmp_id = self.data.iat[i, 0]
-                self._error_log[tmp_id].append(
+                self._warning[tmp_id].append(
                     "Error in indicators: no symptoms specified")
         drop_rows = list(drop_rows)
         self.data.drop(drop_rows, axis=0, inplace=True)
@@ -690,7 +695,7 @@ class InSilicoVA:
             self.subpop.drop(drop_rows, axis=0, inplace=True)
 
     def _datacheck(self):
-        """Run InterVA5 data checks on input and store log in _vacheck_log. """
+        """Run InterVA5 data checks on input and store log in _warning. """
         # TODO: might need to allow this function to accept PYQT5 object for
         #       updating a GUI progress bar
 
@@ -712,9 +717,9 @@ class InSilicoVA:
                                          va_id=checked_input.at[i, "ID"],
                                          probbase=pb,
                                          insilico_check=True)
-            self._vacheck_log["first_pass"].extend(
+            self._warning["first_pass"].extend(
                 checked_results["first_pass"])
-            self._vacheck_log["second_pass"].extend(
+            self._warning["second_pass"].extend(
                 checked_results["second_pass"])
             checked_list.append(checked_results["output"])
         checked = pd.DataFrame(checked_list)
@@ -816,6 +821,7 @@ class InSilicoVA:
                 self._ext_csmf = np.zeros(n_ext_causes)
             self._ext_prob = np.zeros(
                 (ext_data.shape[0], n_ext_causes))
+        self._ext_cod = None
 
     def _remove_external_causes(self):
         if self.data_type == "WHO2012":
@@ -840,26 +846,26 @@ class InSilicoVA:
         Remove missing columns from the data (i.e., all values in column are
         missing) and _probbase.
         """
-        missing_all = []
+        self._missing_all = []
         n_iterations = self.data.shape[1] - 1  # ignore ID column
         for i in range(n_iterations):
             # increment index by 1 for data (but not for _probbase!)
             if all(self.data.iloc[:, (i + 1)] == "."):
-                missing_all.append(i)
-        if len(missing_all) > 0:
-            missing_all_plus1 = np.array(missing_all) + 1
+                self._missing_all.append(i)
+        if len(self._missing_all) > 0:
+            missing_all_plus1 = np.array(self._missing_all) + 1
             missing_all_names = ", ".join(
                 self._probbase[missing_all_plus1,
                                int(self.data_type == "WHO2012")])
-            warnings.warn(f"{len(missing_all)} symptoms missing completely "
+            warnings.warn(f"{len(self._missing_all)} symptoms missing completely "
                           "and added to missing list. \n List of missing "
                           f"symptoms: {missing_all_names}\n",
                           UserWarning)
             drop_col_names = list(self.data.iloc[:, missing_all_plus1])
             self.data.drop(columns=drop_col_names, inplace=True)
-            self._prob_orig = np.delete(self._prob_orig, missing_all, axis=0)
+            self._prob_orig = np.delete(self._prob_orig, self._missing_all, axis=0)
             if self._negate is not None:
-                self._negate = np.delete(self._negate, missing_all, axis=0)
+                self._negate = np.delete(self._negate, self._missing_all, axis=0)
 
     def _initialize_numerical_matrix(self):
         if not self._customization_dev:
@@ -1330,24 +1336,27 @@ class InSilicoVA:
                 "probbase_gibbs": probbase_gibbs,
                 "levels_gibbs": level_gibbs,
                 "mu_last": mu_last, "sigma2_last": sigma2_last,
-                "theta_last": theta_last}
+                "theta_last": theta_last,
+                "pool": pool}
 
     def _prepare_results(self):
         csmf_sub = self._posterior_results["csmf_sub"]
         p_hat = self._posterior_results["p_hat"]
         p_indiv = self._posterior_results["p_indiv"]
         probbase_gibbs = self._posterior_results["probbase_gibbs"]
-        levels_gibbs = self._posterior_results["levels_gibbs"]
-        names_csmf_sub = self._subpop_order_list.copy()
-        N = self._data.shape[0]
+        levels_gibbs = pd.DataFrame(self._posterior_results["levels_gibbs"])
+        pool = self._posterior_results["pool"]
+        N = self.data.shape[0]
         C = self._cond_prob_true.shape[1]
+        n_ext_id = len(self._ext_id)
+        n_ext_causes = len(self._external_causes)
         # To make output consistent for further analysis,
         # add back external results
         # if separated external causes
         if self.external_sep:
             # get starting and ending index
             ext1 = self._external_causes[0]
-            ext2 = self._external_causes[1]
+            # ext2 = self._external_causes[1]
             # if with subgroup
             if self.subpop is not None:
                 p_hat = None
@@ -1355,7 +1364,7 @@ class InSilicoVA:
                 # iterate over all subpopulations
                 for j, val in enumerate(self._sublist):
                     dims = (csmf_sub[j].shape[0],
-                            C + len(self._external_causes))
+                            C + n_ext_causes)
                     csmf_sub_all.append(np.zeros(dims))
                     # rescale the non-external CSMF once the external cause are added
                     rescale = sum(self._sublist[val]) / (
@@ -1374,13 +1383,120 @@ class InSilicoVA:
                 csmf_sub = csmf_sub_all
             # if no subgroup
             else:
-                p_hat = p_hat * N/(N + len(self._ext_id))
+                p_hat = p_hat * N/(N + n_ext_id)
                 temp = p_hat[:, ext1:(C + 1)].copy()
-                n_ext = p_hat.shape[0] * len(self._external_causes)
+                n_ext = p_hat.shape[0] * n_ext_causes
                 extra = np.resize(self._ext_csmf, n_ext)
-                extra.resize((p_hat.shape[0], len(self._external_causes)))
+                extra.resize((p_hat.shape[0], n_ext_causes))
                 p_hat = np.concatenate(
                     (p_hat[:, 0:ext1], extra, temp),
                     axis=1)
 
+            p_indiv = np.concatenate(
+                (p_indiv[:, 0:ext1],
+                 np.zeros((p_indiv.shape[0], n_ext_causes)),
+                 p_indiv[:, ext1:]),
+                axis=1)
+            p_indiv_ext = np.zeros((n_ext_id,
+                                    (C + n_ext_causes)))
+            if n_ext_id > 0:
+                # WHO 2012
+                if self._ext_prob is None:
+                    for i in range(n_ext_id):
+                        p_indiv_ext[i, self._ext_cod[i]] = 1
+                # WHO 2016
+                else:
+                    p_indiv_ext[:, self._external_causes] = self._ext_prob.copy()
+            p_indiv = np.concatenate((p_indiv, p_indiv_ext), axis=0)
+            np.nan_to_num(p_indiv)
+            self._id = pd.concat((self._id, self._ext_id))
+            self.subpop = pd.concat((self.subpop, self._ext_sub))
+        # add column names to outcomes
+        if pool != 0:
+            if self.external_sep:
+                # remove column "ID"
+                self._va_labels.pop(0)
+                # remove external
+                self._va_labels = [i for j, i in enumerate(self._va_labels) if
+                                   j not in self._external_symps]
+                va_causes_ext = self._va_causes.drop(
+                    index=self._external_causes)
+                # remove missing, sequential deleting since that's how we
+                # obtained indices before
+                self._va_labels = [i for j, i in enumerate(self._va_labels) if
+                                   j not in self._missing_all]
+                list_pb_gibbs = []
+                for i in range(probbase_gibbs.shape[0]):
+                    tmp_df = pd.DataFrame(probbase_gibbs[i])
+                    tmp_df.set_axis(self._va_labels, axis=0, inplace=True)
+                    tmp_df.set_axis(va_causes_ext.to_list(),
+                                    axis=1, inplace=True)
+                    list_pb_gibbs.append(tmp_df.copy())
+            else:
+                list_pb_gibbs = []
+                for i in range(probbase_gibbs.shape[0]):
+                    tmp_df = pd.DataFrame(probbase_gibbs[i])
+                    tmp_df.set_axis(self._va_labels, axis=0, inplace=True)
+                    tmp_df.set_axis(self._va_causes.to_list(),
+                                    axis=1, inplace=True)
+                    list_pb_gibbs.append(tmp_df.copy())
+        else:
+            if self._customization_dev:
+                levels_gibbs.set_axis(self._table_dev.tolist(),
+                                      axis=1, inplace=True)
+            else:
+                col_names = ["I", "A+", "A", "A-", "B+", "B", "B-", "C+", "C",
+                             "C-", "D+", "D", "D-", "E", "N"]
+                levels_gibbs.set_axis(col_names, axis=1, inplace=True)
+            probbase_gibbs = levels_gibbs
+        if self.subpop is not None:
+            new_csmf_sub = []
+            for i in range(len(csmf_sub)):
+                tmp_df = pd.DataFrame(csmf_sub[i])
+                tmp_df.set_axis(self._va_causes.to_list(), axis=1, inplace=True)
+                new_csmf_sub.append(tmp_df.copy())
+            p_hat = new_csmf_sub
+        else:
+            p_hat = pd.DataFrame(p_hat)
+            p_hat.set_axis(self._va_causes.to_list(), axis=1, inplace=True)
+        p_indiv = pd.DataFrame(p_indiv)
+        p_indiv.set_axis(self._va_causes.to_list(), axis=1, inplace=True)
+        p_indiv.set_axis(self._id.to_list(), axis=0, inplace=True)
+        if not self.update_cond_prob:
+            probbase_gibbs = None
+        clean_data = pd.DataFrame(self._indic)
+        # because the external deaths might be appended to the end
+        n_clean_data = clean_data.shape[0]
+        clean_data.set_axis(self._id.iloc[0:n_clean_data].to_list(),
+                            axis=0, inplace=True)
+        self.results = InSilico(id=self._id,
+                                data_final=clean_data,
+                                data_checked=self._data_checked,
+                                indiv_prob=p_indiv,
+                                csmf=p_hat,
+                                conditional_probs=probbase_gibbs,
+                                probbase=self._prob_orig,
+                                missing_symptoms=self._missing_all,
+                                external=self.external_sep,
+                                external_causes=self._external_causes,
+                                impossible_causes=self._impossible,
+                                update_cond_prob=self.update_cond_prob,
+                                keep_probbase_level=self.keep_probbase_level,
+                                datacheck=self.datacheck,
+                                n_sim=self.n_sim,
+                                thin=self.thin,
+                                burnin=self.burnin,
+                                jump_scale=self.jump_scale,
+                                levels_prior=self.levels_prior,
+                                levels_strength=self.levels_strength,
+                                trunc_min=self.trunc_min,
+                                trunc_max=self.trunc_max,
+                                subpop=self.subpop,
+                                indiv_ci=self.indiv_ci,
+                                is_customized=self._customization_dev,
+                                errors=self._error_log,
+                                warnings=self._warning,
+                                data_type=self.data_type)
 
+    def get_results(self):
+        return self.results

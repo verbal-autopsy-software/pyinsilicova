@@ -11,6 +11,7 @@ from .exceptions import ArgumentException, DataException
 from .utils import get_vadata
 from .sampler import Sampler
 from .diag import csmf_diag
+from .structures import InSilico
 from typing import Union, Dict
 from vacheck.datacheck5 import datacheck5
 import warnings
@@ -190,6 +191,7 @@ class InSilicoVA:
         self._theta_last: np.ndarray
         self._keep_prob: bool = not self.update_cond_prob
         # attributes set by self._sample_posterior()
+        self._posterior_results: Dict
 
         # results (should a run() _method return an InSilicoVA data object?)
         self.results = None
@@ -1208,7 +1210,64 @@ class InSilicoVA:
                        "pool": pool, "fit": fit}
         results = self._parse_result(fit_results)
         # check convergence
-
+        if results["csmf_sub"] is not None:
+            conv = csmf_diag(results["csmf_sub"], self.conv_csmf,
+                             test="heidel", verbose=False)
+        else:
+            conv = csmf_diag(results["p_hat"], self.conv_csmf,
+                             test="heidel", verbose=False)
+        if self.auto_length:
+            add = 1
+            while not conv and add < 3:
+                mu_last = results["mu_last"]
+                sigma2_last = results["sigma2_last"]
+                theta_last = results["theta_last"]
+                # same length as previous chain if added the first time
+                # double the length if the second time
+                n_sim = self.n_sim * 2
+                burnin = n_sim / 2
+                N_gibbs = int(np.trunc(N_gibbs * (2**(add-1))))
+                burn = int(0)
+                keepProb = not self.update_cond_prob
+                warnings.warn(
+                    f"Not all causes with CSMF > {self.conv_csmf} are "
+                    f"convergent.\n Increase chain length with another "
+                    f"{N_gibbs} iterations.\n")
+                fit_add = sampler.fit(
+                    dimensions=dimensions,
+                    probbase=self._cond_prob.copy(),
+                    probbase_order=self._prob_order.copy(),
+                    level_values=level_values, prior_a=prior_a,
+                    prior_b=prior_b, jumprange=jumprange,
+                    trunc_min=trunc_min, trunc_max=trunc_max,
+                    indic=indic, subpop=subpop,
+                    contains_missing=contains_missing, pool=pool,
+                    seed=seed, N_gibbs=N_gibbs, burn=burn,
+                    thin=thin, mu=mu, sigma2=sigma2,
+                    this_is_Unix=this_is_Unix,
+                    useProbbase=keepProb, isAdded=True,
+                    mu_continue=mu_last,
+                    sigma2_continue=sigma2_last,
+                    theta_continue=theta_last, C_phy=C_phy,
+                    broader=broader, assignment=assignment,
+                    impossible=impossible)
+                fit_results = {"N_sub": N_sub, "C": C, "S": S,
+                               "N_level": N_level,
+                               "pool": pool, "fit": fit_add}
+                results = self._parse_result(fit_results)
+                add += 1
+                # check convergence
+                if results["csmf_sub"] is not None:
+                    conv = csmf_diag(results["csmf_sub"], self.conv_csmf,
+                                     test="heidel", verbose=False)
+                else:
+                    conv = csmf_diag(results["p_hat"], self.conv_csmf,
+                                     test="heidel", verbose=False)
+        if not conv:
+            warnings.warn(
+                f"Not all causes with CSMF > {self.conv_csmf} are convergent.\n"
+                "Please check using csmf_diag() for more information.\n")
+        self._posterior_results = results
 
     def _parse_result(self, fit_results: Dict) -> Dict:
         n = self.data.shape[0]
@@ -1264,7 +1323,7 @@ class InSilicoVA:
         sigma2_last = fit[counter:(counter + n_sub)]
         counter = counter + n_sub
         theta_last = fit[counter:(counter + n_sub*c)]
-        theta_last = np.array(theta_last).rehape((n_sub, c))
+        theta_last = np.array(theta_last).reshape((n_sub, c))
         counter = counter + (n_sub * c)
 
         return {"csmf_sub": csmf_sub, "p_hat": p_hat, "p_indiv": p_indiv,
@@ -1272,3 +1331,56 @@ class InSilicoVA:
                 "levels_gibbs": level_gibbs,
                 "mu_last": mu_last, "sigma2_last": sigma2_last,
                 "theta_last": theta_last}
+
+    def _prepare_results(self):
+        csmf_sub = self._posterior_results["csmf_sub"]
+        p_hat = self._posterior_results["p_hat"]
+        p_indiv = self._posterior_results["p_indiv"]
+        probbase_gibbs = self._posterior_results["probbase_gibbs"]
+        levels_gibbs = self._posterior_results["levels_gibbs"]
+        names_csmf_sub = self._subpop_order_list.copy()
+        N = self._data.shape[0]
+        C = self._cond_prob_true.shape[1]
+        # To make output consistent for further analysis,
+        # add back external results
+        # if separated external causes
+        if self.external_sep:
+            # get starting and ending index
+            ext1 = self._external_causes[0]
+            ext2 = self._external_causes[1]
+            # if with subgroup
+            if self.subpop is not None:
+                p_hat = None
+                csmf_sub_all = []
+                # iterate over all subpopulations
+                for j, val in enumerate(self._sublist):
+                    dims = (csmf_sub[j].shape[0],
+                            C + len(self._external_causes))
+                    csmf_sub_all.append(np.zeros(dims))
+                    # rescale the non-external CSMF once the external cause are added
+                    rescale = sum(self._sublist[val]) / (
+                        sum(self._sublist[val]) + sum(self._ext_sub == val))
+                    temp = csmf_sub[j] * rescale
+                    # combine the rescaled non-external CSMF with the external CSMF
+                    n_ext = len(self._ext_csmf[j]) * temp.shape[0]
+                    ext_temp = np.resize(self._ext_csmf[j], n_ext)
+                    ext_temp.resize((temp.shape[0], len(self._ext_csmf[j])))
+                    # TODO: is np.insert a better tool for this?
+                    csmf_temp = np.concatenate(
+                        (temp[:, 0:ext1], ext_temp, temp[:, ext1:]),
+                        axis=1)
+                    csmf_temp = np.nan_to_num(csmf_temp)
+                    csmf_sub_all.append(csmf_temp)
+                csmf_sub = csmf_sub_all
+            # if no subgroup
+            else:
+                p_hat = p_hat * N/(N + len(self._ext_id))
+                temp = p_hat[:, ext1:(C + 1)].copy()
+                n_ext = p_hat.shape[0] * len(self._external_causes)
+                extra = np.resize(self._ext_csmf, n_ext)
+                extra.resize((p_hat.shape[0], len(self._external_causes)))
+                p_hat = np.concatenate(
+                    (p_hat[:, 0:ext1], extra, temp),
+                    axis=1)
+
+

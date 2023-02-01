@@ -69,7 +69,7 @@ def csmf_diag(csmf: Union[InSilico, list],
     multiple in the fitted object.
     :type which_sub: numpy.ndarray
     """
-    check_csmf = []
+    check_csmf = csmf.copy()
     if test not in ("gelman", "heidel"):
         raise ArgumentException(
             "Test needs to be either 'gelman' or 'heidel'.")
@@ -131,15 +131,18 @@ def csmf_diag(csmf: Union[InSilico, list],
     if test == "heidel":
         testout = []
         conv = 1
-        for i in range(len(check_csmf)): # i = 0
+        for i in range(len(check_csmf)):
             out = _heidel_single(check_csmf[i], conv_csmf)
             testout.append(out)
-            conv = conv * testout["stest"].prod() * testout["htest"].prod()
+            # conv = conv * testout["stest"].prod() * testout["htest"].prod()
+            conv = conv * out[:, 0].prod() * out[:, 3].prod()
     # Gelman test
     if test == "gelman":
         raise ArgumentException(
             "'gelman' test has not been implemented yet (use 'heidel').")
-    if not verbose & test == "heidel":
+    if np.isnan(conv):
+        conv = 0
+    if not verbose and test == "heidel":
         return conv
     else:
         return testout

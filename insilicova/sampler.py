@@ -192,11 +192,17 @@ class Sampler:
             nomissing.extend(s_extend.tolist())
             # loop over cause-symptoms combination to calculate naive bayes prob
             for c in range(self.C):
-                for s in nomissing:
-                    if indic[n, s] > 0:
-                        nb[n, c] *= self.probbase[s, c]
-                    else:
-                        nb[n, c] *= (1 - self.probbase[s, c])
+                # for s in nomissing:
+                #     if indic[n, s] > 0:
+                #         nb[n, c] *= self.probbase[s, c]
+                #     else:
+                #         nb[n, c] *= (1 - self.probbase[s, c])
+                factor1 = self.probbase[nomissing, c]
+                factor2 = 1 - self.probbase[nomissing, c]
+                index1 = indic[n, nomissing] > 0
+                factor3 = np.prod(factor1[index1]) * np.prod(factor2[~index1])
+                nb[n, c] *= factor3
+
             # normalization
             # nb[n] = np.linalg.norm(nb[n])
             nb[n] = nb[n]/sum(nb[n])

@@ -71,7 +71,6 @@ class InSilicoVA:
                  groupcode: bool = False,
                  run: bool = True) -> None:
 
-        # TODO: unless using a lot of data, lists might be faster than np.array
         # instance attributes from arguments
         self.data = data.copy()
         self.data_type = data_type
@@ -212,6 +211,27 @@ class InSilicoVA:
 
         if self.run:
             self._run()
+
+    def __str__(self):
+        if hasattr(self, "results"):
+            n_iter = (self.n_sim - self.burnin)/self.thin
+            msg = f"""
+            InSilicoVA:
+            {self.results.data_final.shape[0]} deaths processed
+            {self.n_sim} iterations performed, with the first {self.burnin} iterations discarded
+            {int(n_iter)} iterations saved after thinning
+            """
+            return msg
+        else:
+            n_iter = (self.n_sim - self.burnin) / self.thin
+            msg = f"""
+            InSilicoVA:
+            {self.data.shape[0]} deaths loaded
+            {self.n_sim} iterations requested (the first {self.burnin} iterations will be discarded
+            {int(n_iter)} iterations will saved after thinning
+            (no results yet, need to use run() method)
+            """
+            return msg
 
     def _run(self):
         self._change_data_coding()
@@ -1428,47 +1448,47 @@ class InSilicoVA:
                 list_pb_gibbs = []
                 for i in range(probbase_gibbs.shape[0]):
                     tmp_df = pd.DataFrame(probbase_gibbs[i])
-                    tmp_df.set_axis(self._va_labels, axis=0, inplace=True)
-                    tmp_df.set_axis(va_causes_ext.to_list(),
-                                    axis=1, inplace=True)
+                    tmp_df = tmp_df.set_axis(self._va_labels, axis=0)
+                    tmp_df = tmp_df.set_axis(va_causes_ext.to_list(),
+                                             axis=1)
                     list_pb_gibbs.append(tmp_df.copy())
             else:
                 list_pb_gibbs = []
                 for i in range(probbase_gibbs.shape[0]):
                     tmp_df = pd.DataFrame(probbase_gibbs[i])
-                    tmp_df.set_axis(self._va_labels, axis=0, inplace=True)
-                    tmp_df.set_axis(self._va_causes.to_list(),
-                                    axis=1, inplace=True)
+                    tmp_df = tmp_df.set_axis(self._va_labels, axis=0)
+                    tmp_df = tmp_df.set_axis(self._va_causes.to_list(),
+                                             axis=1)
                     list_pb_gibbs.append(tmp_df.copy())
         else:
             if self._customization_dev:
-                levels_gibbs.set_axis(self._table_dev.tolist(),
-                                      axis=1, inplace=True)
+                levels_gibbs = levels_gibbs.set_axis(self._table_dev.tolist(),
+                                                     axis=1)
             else:
                 col_names = ["I", "A+", "A", "A-", "B+", "B", "B-", "C+", "C",
                              "C-", "D+", "D", "D-", "E", "N"]
-                levels_gibbs.set_axis(col_names, axis=1, inplace=True)
+                levels_gibbs = levels_gibbs.set_axis(col_names, axis=1)
             probbase_gibbs = levels_gibbs
         if self.subpop is not None:
             new_csmf_sub = []
             for i in range(len(csmf_sub)):
                 tmp_df = pd.DataFrame(csmf_sub[i])
-                tmp_df.set_axis(self._va_causes.to_list(), axis=1, inplace=True)
+                tmp_df = tmp_df.set_axis(self._va_causes.to_list(), axis=1)
                 new_csmf_sub.append(tmp_df.copy())
             p_hat = new_csmf_sub
         else:
             p_hat = pd.DataFrame(p_hat)
-            p_hat.set_axis(self._va_causes.to_list(), axis=1, inplace=True)
+            p_hat = p_hat.set_axis(self._va_causes.to_list(), axis=1)
         p_indiv = pd.DataFrame(p_indiv)
-        p_indiv.set_axis(self._va_causes.to_list(), axis=1, inplace=True)
-        p_indiv.set_axis(self._id.to_list(), axis=0, inplace=True)
+        p_indiv = p_indiv.set_axis(self._va_causes.to_list(), axis=1)
+        p_indiv = p_indiv.set_axis(self._id.to_list(), axis=0)
         if not self.update_cond_prob:
             probbase_gibbs = None
         clean_data = pd.DataFrame(self._indic)
         # because the external deaths might be appended to the end
         n_clean_data = clean_data.shape[0]
-        clean_data.set_axis(self._id.iloc[0:n_clean_data].to_list(),
-                            axis=0, inplace=True)
+        clean_data = clean_data.set_axis(
+            self._id.iloc[0:n_clean_data].to_list(), axis=0)
         self.results = InSilico(id=self._id,
                                 data_final=clean_data,
                                 data_checked=self._data_checked,

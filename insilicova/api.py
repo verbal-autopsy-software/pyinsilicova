@@ -1385,7 +1385,7 @@ class InSilicoVA:
                 for j, val in enumerate(self._sublist):
                     dims = (csmf_sub[j].shape[0],
                             C + n_ext_causes)
-                    csmf_sub_all.append(np.zeros(dims))
+                    # csmf_sub_all.append(np.zeros(dims))
                     # rescale the non-external CSMF once the external cause are added
                     rescale = sum(self._sublist[val]) / (
                         sum(self._sublist[val]) + sum(self._ext_sub == val))

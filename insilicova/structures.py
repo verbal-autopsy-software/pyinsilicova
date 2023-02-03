@@ -21,7 +21,7 @@ class InSilicoSummary:
     id_all: pd.Series
     indiv: pd.DataFrame
     csmf: pd.DataFrame
-    csmf_order: list
+    csmf_ordered: list
     condprob: pd.DataFrame
     update_cond_prob: bool
     keep_probbase_level: bool
@@ -29,6 +29,8 @@ class InSilicoSummary:
     n_sim: int
     thin: int
     burnin: int
+    # hiv: str
+    # malaria: str
     jump_scale: float
     levels_prior: np.ndarray
     levels_strength: np.ndarray
@@ -43,21 +45,49 @@ class InSilicoSummary:
 
     # TODO: not sure how to make this useful
     def __repr__(self):
-        cls = self.__class__.__name__
+        cls = self.__class__
         msg = f"""
-        <{cls}(>
-        (call for InSilico.summary())"""
+        <{str(cls)}>
+        (called for InSilico.summary())"""
+        return msg
 
     def __str__(self):
-        # TODO: need to code this up (just copied & pasted)
-        n_iter = (self.n_sim - self.burnin)/self.thin
-        msg = f"""
-        InSilicoVA fitted object:
-        {self.data_final.shape[0]} deaths processed
-        {self.n_sim} iterations performed, with the first {self.burnin} iterations discarded
-        {int(n_iter)} iterations saved after thinning
-        """
-        return msg
+        if self.indiv_prob is not None:
+            msg = (f"InSilicoVA fitted top {self.show_top} "
+                   f"causes for death ID: {self.id}\n"
+                   f"Credible intervals shown: {round(self.indiv_ci * 100)}% \n"
+                   f"{round(self.indiv_prob, 4)}")
+            return msg
+        else:
+            n_iter = int((self.n_sim - self.burnin)/self.thin)
+            msg = (f"InSilico Call:\n"
+                   f"{len(self.id_all)} deaths processed.\n"
+                   f"{self.n_sim} iterations performed, "
+                   "with first {self.burnin} iterations discarded.\n"
+                   f"{n_iter} iterations saved after thinning.")
+            msg_p_mat = "Fitted with re-estimating conditional probability matrix."
+            if not self.update_cond_prob:
+                msg_p_mat = "Fitted with fixed conditional probability matrix"
+            elif self.keep_probbase_level:
+                msg_p_mat = "Fitted with re-estimated conditional probability level table"
+            msg = msg + f"\n{msg_p_mat}"
+            if self.datacheck:
+                check_alg = "InterVA5" if self.data_type == "WHO2016" else "InterVA4"
+                msg = msg + f"\nData consistency check performed as in {check_alg}\n"
+            if self.subpop_counts is not None:
+                msg = msg + f"\nSub population frequencies:\n{self.subpop_counts}\n"
+            if not isinstance(self.csmf_ordered, dict):
+                top = min(self.show_top, self.csmf_ordered.shape[0])
+                msg = msg + f"\nTop {top} CSMF's\n{self.csmf_ordered[0:top]}"
+            else:
+                for k, v in self.csmf_ordered.items():
+                    # top = min(self.show_top, self.csmf_ordered[key].shape[0])
+                    top = min(self.show_top, v.shape[0])
+                    msg = msg + (f"\n{k} - Top {top} CSMFs:\n"
+                                 # f"{self.csmf_ordered[key][0:top]}")
+                                 f"{v[0:top]}\n")
+
+            return msg
 
 
 @dataclass
@@ -97,37 +127,38 @@ class InSilico:
 
     # TODO: not sure how to make this useful
     def __repr__(self):
-        cls = self.__class__.__name__
+        cls = self.__class__
         msg = f"""
-        <{cls}(id=self._id,
-               data_final=clean_data,
-               data_checked=self._data_checked,
-               indiv_prob=p_indiv,
-               csmf=p_hat,
-               conditional_probs=probbase_gibbs,
-               probbase=self._prob_orig,
-               missing_symptoms=self._missing_all,
-               external=self.external_sep,
-               external_causes=self._external_causes,
-               impossible_causes=self._impossible,
-               update_cond_prob=self.update_cond_prob,
-               keep_probbase_level=self.keep_probbase_level,
-               datacheck=self.datacheck,
-               n_sim=self.n_sim,
-               thin=self.thin,
-               burnin=self.burnin,
-               jump_scale=self.jump_scale,
-               levels_prior=self.levels_prior,
-               levels_strength=self.levels_strength,
-               trunc_min=self.trunc_min,
-               trunc_max=self.trunc_max,
-               subpop=self.subpop,
-               indiv_ci=self.indiv_ci,
-               is_customized=self._customization_dev,
-               errors=self._error_log,
-               warnings=self._warning,
-               data_type=self.data_type)>
+        <{str(cls)}(id=self._id,
+        data_final=clean_data,
+        data_checked=self._data_checked,
+        indiv_prob=p_indiv,
+        csmf=p_hat,
+        conditional_probs=probbase_gibbs,
+        probbase=self._prob_orig,
+        missing_symptoms=self._missing_all,
+        external=self.external_sep,
+        external_causes=self._external_causes,
+        impossible_causes=self._impossible,
+        update_cond_prob=self.update_cond_prob,
+        keep_probbase_level=self.keep_probbase_level,
+        datacheck=self.datacheck,
+        n_sim=self.n_sim,
+        thin=self.thin,
+        burnin=self.burnin,
+        jump_scale=self.jump_scale,
+        levels_prior=self.levels_prior,
+        levels_strength=self.levels_strength,
+        trunc_min=self.trunc_min,
+        trunc_max=self.trunc_max,
+        subpop=self.subpop,
+        indiv_ci=self.indiv_ci,
+        is_customized=self._customization_dev,
+        errors=self._error_log,
+        warnings=self._warning,
+        data_type=self.data_type)>
         (call for InSilicoVA._prepare_results())"""
+        return msg
 
     def __str__(self):
         n_iter = (self.n_sim - self.burnin)/self.thin
@@ -135,8 +166,7 @@ class InSilico:
         InSilicoVA fitted object:
         {self.data_final.shape[0]} deaths processed
         {self.n_sim} iterations performed, with the first {self.burnin} iterations discarded
-        {int(n_iter)} iterations saved after thinning
-        """
+        {int(n_iter)} iterations saved after thinning"""
         return msg
 
     def summary(self,
@@ -163,8 +193,10 @@ class InSilico:
         ci_low = (1 - ci_csmf) / 2
         ci_up = 1 - ci_low
         if isinstance(self.csmf, list):
-            csmf_out = []
-            csmf_out_ordered = []
+            csmf_out = {}
+            csmf_out_ordered = {}
+            csmf_labels = list(self.subpop.unique())
+            csmf_labels.sort()
             for i in range(len(self.csmf)):
                 mean = self.csmf[i].mean(axis=0)
                 median = self.csmf[i].median(axis=0)
@@ -174,10 +206,9 @@ class InSilico:
                 cond_out = pd.DataFrame({"Mean": mean, "Std.Error": sd,
                                          "Lower": low, "Median": median,
                                          "Upper": up})
-                csmf_out.append(cond_out)
+                csmf_out[csmf_labels[i]] = cond_out
                 csmf_ordered = mean.sort_values(ascending=False)
-                csmf_out_ordered.append(csmf_ordered)
-                # here you need the names of the subpopulations
+                csmf_out_ordered[csmf_labels[i]] = csmf_ordered
         else:
             mean = self.csmf.mean(axis=0)
             median = self.csmf.median(axis=0)
@@ -216,7 +247,6 @@ class InSilico:
         # get subpopulation counts table
         if self.subpop is not None:
             subpop_counts = self.subpop.value_counts()
-            # TODO: need to order this to match self.csmf (if list)
         else:
             subpop_counts = None
 

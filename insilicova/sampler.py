@@ -176,6 +176,7 @@ class Sampler:
         #     # for c in range(self.C):
         #     #     nb[n, c] = csmf_sub[subpop[n], c] * zero_matrix[n, c]
         subpop_unique = np.unique(subpop)
+        # subpop_unique.sort()
         for n in subpop_unique:
             tmp_index = np.where(subpop == n)[0]
             nb[tmp_index] = csmf_sub[n] * zero_matrix[tmp_index]

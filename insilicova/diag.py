@@ -206,7 +206,7 @@ def _heidel_diag(x: np.ndarray,
     for j in range(n_var):
         start_vec = np.arange(start=1,
                               stop=int((n_iter + 1)/2),
-                              step=int(n_iter/10))
+                              step=max(int(n_iter/10), 1))
         Y = x[:, j].copy()
         Y_start = (int(np.ceil(x.shape[0] / 2)) - 1)
         Y_ar = Y[Y_start:]

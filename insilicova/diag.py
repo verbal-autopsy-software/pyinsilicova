@@ -69,7 +69,11 @@ def csmf_diag(csmf: Union[InSilico, list],
     multiple in the fitted object.
     :type which_sub: numpy.ndarray
     """
-    check_csmf = csmf.copy()
+    if isinstance(csmf, np.ndarray):
+        check_csmf = []
+        check_csmf.append(csmf.copy())
+    else:
+        check_csmf = csmf.copy()
     if test not in ("gelman", "heidel"):
         raise ArgumentException(
             "Test needs to be either 'gelman' or 'heidel'.")

@@ -266,7 +266,7 @@ class InSilicoVA:
             self._initialize_indicator_matrix()
             self._initialize_parameters()
             self._sample_posterior()
-            self._return_results()
+            self._prepare_results()
 
     def _change_data_coding(self):
         if self.data_type == "WHO2016":
@@ -1167,7 +1167,7 @@ class InSilicoVA:
         self._pool = int(not self.keep_probbase_level) + int(self._probbase_by_symp_dev)
         if self.subpop is None:
             self._n_sub = 1
-            self._subpop_numeric = np.zeros(self.data.shape[0])
+            self._subpop_numeric = np.zeros(self.data.shape[0], dtype=int)
         else:
             self._n_sub = len(np.unique(self._subpop_numeric))
         self._mu_last = np.zeros(
@@ -1180,7 +1180,8 @@ class InSilicoVA:
         N = self.data.shape[0]
         S = self.data.shape[1] - 1
         C = self._cond_prob_true.shape[1]
-        N_sub = len(self._sublist)
+        # N_sub = len(self._sublist)
+        N_sub = self._n_sub
         N_level = sum(self._level_exist)
         subpop = self._subpop_numeric.copy()
         probbase = self._cond_prob.copy()
@@ -1430,7 +1431,8 @@ class InSilicoVA:
             p_indiv = np.concatenate((p_indiv, p_indiv_ext), axis=0)
             np.nan_to_num(p_indiv)
             self._id = pd.concat((self._id, self._ext_id))
-            self.subpop = pd.concat((self.subpop, self._ext_sub))
+            if self.subpop is not None:
+                self.subpop = pd.concat((self.subpop, self._ext_sub))
         # add column names to outcomes
         if pool != 0:
             if self.external_sep:

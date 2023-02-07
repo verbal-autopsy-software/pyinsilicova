@@ -218,6 +218,7 @@ class InSilico:
             cond_out = pd.DataFrame({"Mean": mean, "Std.Error": sd,
                                      "Lower": low, "Median": median,
                                      "Upper": up})
+            csmf_out = {}
             csmf_out_ordered = mean.sort_values(ascending=False)
 
         # organize conditional probabilities matrix object

@@ -195,17 +195,23 @@ class Sampler:
             s_extend = np.where(indic[n] >= 0)[0]
             nomissing.extend(s_extend.tolist())
             # loop over cause-symptoms combination to calculate naive bayes prob
-            for c in range(self.C):
-                # for s in nomissing:
-                #     if indic[n, s] > 0:
-                #         nb[n, c] *= self.probbase[s, c]
-                #     else:
-                #         nb[n, c] *= (1 - self.probbase[s, c])
-                factor1 = self.probbase[nomissing, c]
-                factor2 = 1 - self.probbase[nomissing, c]
-                index1 = indic[n, nomissing] > 0
-                factor3 = np.prod(factor1[index1]) * np.prod(factor2[~index1])
-                nb[n, c] *= factor3
+            # for c in range(self.C):
+            #     # for s in nomissing:
+            #     #     if indic[n, s] > 0:
+            #     #         nb[n, c] *= self.probbase[s, c]
+            #     #     else:
+            #     #         nb[n, c] *= (1 - self.probbase[s, c])
+            #     factor1 = self.probbase[nomissing, c]
+            #     factor2 = 1 - self.probbase[nomissing, c]
+            #     index1 = indic[n, nomissing] > 0
+            #     factor3 = np.prod(factor1[index1]) * np.prod(factor2[~index1])
+            #     nb[n, c] *= factor3
+            factor1 = self.probbase[nomissing]
+            factor2 = 1 - self.probbase[nomissing]
+            index1 = indic[n, nomissing] > 0
+            factor3 = np.product(factor1[index1], axis=0) * np.product(
+                factor2[~index1], axis=0)
+            nb[n] *= factor3
 
             # normalization
             # nb[n] = np.linalg.norm(nb[n])
@@ -245,7 +251,8 @@ class Sampler:
                     else:
                         nb[n, c] *= (1 - self.probbase[s, c])
             # normalization
-            nb[n] = np.linalg.norm(nb[n])
+            # nb[n] = np.linalg.norm(nb[n])
+            nb[n] = nb[n] / sum(nb[n])
         return nb
 
     # function to sample a multinomial, note the sampled y starts from 0!
@@ -427,8 +434,9 @@ class Sampler:
                                       ymin, ymax)
                             new_prob_under_s[c] = value
             # update this column of probbase
-            for c in range(self.C):
-                self.probbase[s, c] = new_prob_under_s[c]
+            # for c in range(self.C):
+            #     self.probbase[s, c] = new_prob_under_s[c]
+            self.probbase[s, :] = new_prob_under_s.copy()
 
     # function to perform Truncated beta distribution for the whole conditional probability matrix.
     # update cond.prob within the class.
@@ -534,7 +542,9 @@ class Sampler:
                                       ymin, ymax)
                             new_prob_under_c[s] = value
             # update this column of probbase
-            for s in range(self.S): self.probbase[s, c] = new_prob_under_c[s]
+            # for s in range(self.S):
+            #     self.probbase[s, c] = new_prob_under_c[s]
+            self.probbase[:, c] = new_prob_under_c.copy()
 
     # function to perform Truncated beta distribution for the probbase table.
     # update cond.prob within the class. Return table vector.
@@ -700,7 +710,6 @@ class Sampler:
                 sigma2_now[sub] = sigma2
                 theta_now[sub][0] = 1
                 expsum = exp(1.0)
-                # TODO: can this be vectorized?
                 for c in range(1, C):
                     # theta_now[sub][c] = log(rand.random() * 100.0)
                     theta_now[sub][c] = log(rngU() * 100.0)
@@ -732,8 +741,7 @@ class Sampler:
                 for k in range(len(impossible)):
                     if indic[i][impossible[k][1] - 1] == 1 and impossible[k][2] == 0:
                         zero_matrix[i][impossible[k][0] - 1] = 0
-                    if indic[i][impossible[k][1] - 1] == 0 and impossible[k][
-                        2] == 1:
+                    if indic[i][impossible[k][1] - 1] == 0 and impossible[k][2] == 1:
                         zero_matrix[i][impossible[k][0] - 1] = 0
         # check if specific causes are impossible for a whole subpopulation
         zero_group_matrix = np.zeros((N_sub, C))

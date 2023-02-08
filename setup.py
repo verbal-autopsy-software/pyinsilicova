@@ -34,6 +34,9 @@ setup(
         "numpy",
         "vacheck",
         "interva",
+        "statsmodels",
+        "scipy",
+        "tqdm",
         ],
     classifiers=[
         "Programming Language :: Python :: 3",

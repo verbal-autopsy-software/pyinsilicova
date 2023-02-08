@@ -307,6 +307,7 @@ class InSilicoVA:
                           "). Failing to properly _negate all such symptoms "
                           "will lead to erroneous inference.",
                           UserWarning)
+            self._data_checked = None
         if self.warning_write:
             try:
                 os.makedirs(self.directory, exist_ok=True)
@@ -697,17 +698,17 @@ class InSilicoVA:
             if sum(data_num[i, age_cols]) < 1:
                 drop_rows.add(i)
                 tmp_id = self.data.iat[i, 0]
-                self._warning[tmp_id].append(
+                self._error_log[tmp_id].append(
                     "Error in age indicator: not specified")
             if sum(data_num[i, sex_cols]) < 1:
                 drop_rows.add(i)
                 tmp_id = self.data.iat[i, 0]
-                self._warning[tmp_id].append(
+                self._error_log[tmp_id].append(
                     "Error in sex indicator: not specified")
             if sum(data_num[i, ind_cols]) < 1:
                 drop_rows.add(i)
                 tmp_id = self.data.iat[i, 0]
-                self._warning[tmp_id].append(
+                self._error_log[tmp_id].append(
                     "Error in indicators: no symptoms specified")
         drop_rows = list(drop_rows)
         self.data.drop(drop_rows, axis=0, inplace=True)

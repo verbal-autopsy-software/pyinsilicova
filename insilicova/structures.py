@@ -21,7 +21,7 @@ class InSilicoSummary:
     id_all: pd.Series
     indiv: pd.DataFrame
     csmf: pd.DataFrame
-    csmf_ordered: list
+    csmf_ordered: Union[Dict, pd.DataFrame]
     condprob: pd.DataFrame
     update_cond_prob: bool
     keep_probbase_level: bool
@@ -124,6 +124,7 @@ class InSilico:
     indiv_prob_median: Union[pd.DataFrame, None] = None
     indiv_prob_upper: Union[pd.DataFrame, None] = None
     indiv_prob_lower: Union[pd.DataFrame, None] = None
+    summary: Union[pd.DataFrame, None] = None
 
     # TODO: not sure how to make this useful
     def __repr__(self):
@@ -169,12 +170,54 @@ class InSilico:
         {int(n_iter)} iterations saved after thinning"""
         return msg
 
-    def summary(self,
-                ci_csmf: float = 0.95,
-                ci_cond: float = 0.95,
-                file_name: Union[None, str] = None,
-                top: int = 10,
-                va_id: Union[None, str] = None):
+    def get_summary(self,
+                    ci_csmf: float = 0.95,
+                    ci_cond: float = 0.95,
+                    file_name: Union[None, str] = None,
+                    top: int = 10,
+                    va_id: Union[None, str] = None,
+                    verbose: bool = True) -> None:
+        self.summary = self._create_summary(
+            ci_csmf=ci_csmf,
+            ci_cond=ci_cond,
+            file_name=file_name,
+            top=top,
+            va_id=va_id)
+        if verbose:
+            print(self.summary)
+
+    def get_csmf(self,
+                 ci_csmf: float = 0.95,
+                 file_name: Union[None, str] = None,
+                 top: int = 10) -> pd.DataFrame:
+        if self.summary is None:
+            self.get_summary(ci_csmf=ci_csmf, top=top, verbose=False)
+        if isinstance(self.summary.csmf_ordered, dict):
+            csmf_out = {}
+            for k, v in self.csmf.csmf_order.items():
+                csmf_out[k] = v.iloc[0:top, :].copy()
+        else:
+            csmf_out = self.summary.csmf_ordered.iloc[0:top, :]
+        if isinstance(file_name, str):
+            if isinstance(self.summary.csmf_ordered, dict):
+                csmf_csv = pd.concat(csmf_out)
+                csmf_csv.index.names = ["Sub-population", "Cause"]
+                csmf_csv.reset_index(level="Sub-population")
+            else:
+                csmf_csv = csmf_out.copy()
+            try:
+                csmf_csv.to_csv(file_name)
+            except (OSError, PermissionError) as exc:
+                raise ArgumentException(
+                    "Unable to write CSV file.") from exc
+        return csmf_out
+
+    def _create_summary(self,
+                        ci_csmf: float = 0.95,
+                        ci_cond: float = 0.95,
+                        file_name: Union[None, str] = None,
+                        top: int = 10,
+                        va_id: Union[None, str] = None) -> InSilicoSummary:
         id_all = self.id
         csmf = self.csmf
         if self.conditional_probs is None:
@@ -207,7 +250,8 @@ class InSilico:
                                          "Lower": low, "Median": median,
                                          "Upper": up})
                 csmf_out[csmf_labels[i]] = cond_out
-                csmf_ordered = mean.sort_values(ascending=False)
+                csmf_ordered = cond_out.sort_values(by="Mean",
+                                                    ascending=False).copy()
                 csmf_out_ordered[csmf_labels[i]] = csmf_ordered
         else:
             mean = self.csmf.mean(axis=0)
@@ -215,12 +259,11 @@ class InSilico:
             sd = self.csmf.std(axis=0)
             low = self.csmf.quantile(ci_low, axis=0)
             up = self.csmf.quantile(ci_up, axis=0)
-            cond_out = pd.DataFrame({"Mean": mean, "Std.Error": sd,
+            csmf_out = pd.DataFrame({"Mean": mean, "Std.Error": sd,
                                      "Lower": low, "Median": median,
                                      "Upper": up})
-            csmf_out = {}
-            csmf_out_ordered = mean.sort_values(ascending=False)
-
+            csmf_out_ordered = csmf_out.sort_values(by="Mean",
+                                                    ascending=False).copy()
         # organize conditional probabilities matrix object
         ci_low = (1 - ci_cond) / 2
         ci_up = 1 - ci_low

@@ -17,12 +17,12 @@ from scipy.special import kv
 from pandas import DataFrame
 
 
-def csmf_diag(csmf: Union[InSilico, list],
+def csmf_diag(csmf: Union[InSilico, List],
               conv_csmf: float = 0.02,
               test: str = "heidel",
               verbose: bool = True,
               autoburnin: bool = False,
-              which_sub: Union[None, np.ndarray] = None) -> list[DataFrame]:
+              which_sub: Union[None, np.ndarray] = None) -> List[DataFrame]:
     """
     Convergence test for fitted InSilicoVA model.
 

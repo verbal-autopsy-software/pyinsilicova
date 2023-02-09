@@ -238,6 +238,10 @@ class InSilicoVA:
     def _run(self):
         if self.openva_app:
             from PyQt5.QtWidgets import QApplication
+            self.openva_app.label_insilicova_progress.setText(
+                "preparing data..."
+            )
+            QApplication.processEvents()
         self._change_data_coding()
         self._check_args()
         self._initialize_data_dependencies()
@@ -269,6 +273,11 @@ class InSilicoVA:
                 self._get_subpop_info()
             self._initialize_indicator_matrix()
             self._initialize_parameters()
+            if self.openva_app:
+                msg = "Running InSilicoVA..."
+                if self.auto_length:
+                    msg += "\n(progress bar may reset once or twice since auto increase is True)"
+                self.openva_app.label_insilicova_progress.setText(msg)
             self._sample_posterior()
             self._prepare_results()
 

@@ -889,9 +889,7 @@ class Sampler:
                     popup.set_description(f"{k} {message}")
 
             if openva_app:
-                progress = int(100*k / N_gibbs)
-                if k == N_gibbs:
-                    progress == 100
+                progress = int(100*k / N_gibbs + 1)
                 openva_app.insilicova_pbar.setValue(progress)
                 QApplication.processEvents()
 

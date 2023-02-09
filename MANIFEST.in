@@ -1,5 +1,3 @@
 include README.md
 include LICENSE
 include insilicova/data/*.csv
-include insilicova/data/*.xls
-include insilicova/data/*.py

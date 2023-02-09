@@ -69,7 +69,8 @@ class InSilicoVA:
                  no_is_missing: bool = False,
                  indiv_ci: Union[None, float] = None,
                  groupcode: bool = False,
-                 run: bool = True) -> None:
+                 run: bool = True,
+                 openva_app=None) -> None:
 
         # instance attributes from arguments
         self.data = data.copy()
@@ -109,6 +110,7 @@ class InSilicoVA:
         self.indiv_ci = indiv_ci
         self.groupcode = groupcode
         self.run = run
+        self.openva_app = openva_app
 
         # retain copies of original input -- IS THIS NEEDED?
         self.original_data: pd.DataFrame = data.copy()
@@ -234,6 +236,8 @@ class InSilicoVA:
             return msg
 
     def _run(self):
+        if self.openva_app:
+            from PyQt5.QtWidgets import QApplication
         self._change_data_coding()
         self._check_args()
         self._initialize_data_dependencies()
@@ -1233,7 +1237,8 @@ class InSilicoVA:
                           sigma2_continue=sigma2_continue,
                           theta_continue=theta_continue, C_phy=C_phy,
                           broader=broader, assignment=assignment,
-                          impossible=impossible)
+                          impossible=impossible,
+                          openva_app=self.openva_app)
         fit_results = {"N_sub": N_sub, "C": C, "S": S, "N_level": N_level,
                        "pool": pool, "fit": fit}
         results = self._parse_result(fit_results)

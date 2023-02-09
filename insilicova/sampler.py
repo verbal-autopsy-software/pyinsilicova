@@ -61,8 +61,7 @@ class Sampler:
     def __init__(self, N: int, S: int, C: int, N_sub: int, N_level: int,
                  subpop: list, probbase: np.ndarray,
                  probbase_order: np.ndarray,
-                 level_values: list, pool: int,
-                 openva_app):
+                 level_values: list, pool: int):
         self.N = N
         self.S = S
         self.C = C
@@ -80,9 +79,6 @@ class Sampler:
         # self.probbase_level = dict of K-int + V-dict, of K-int + V-list of int
         self.probbase_level = {}
         self.levelize(pool)
-        self.openva_app = openva_app
-        if self.openva_app:
-            from PyQt5.QtWidgets import QApplication
 
     # Initialization with physician coding, have to initialize first
     def initiate_phys_coding(self, C_phy: int, broader: list):
@@ -650,7 +646,8 @@ class Sampler:
             burn: int, thin: int, mu: list, sigma2: float, this_is_Unix: bool,
             useProbbase: bool, isAdded: bool, mu_continue: np.ndarray,
             sigma2_continue: list, theta_continue: np.ndarray, C_phy: int,
-            broader: list, assignment: np.ndarray, impossible: np.ndarray):
+            broader: list, assignment: np.ndarray, impossible: np.ndarray,
+            openva_app):
 
         # initialization
         N = dimensions[0]  # int
@@ -658,6 +655,8 @@ class Sampler:
         C = dimensions[2]  # int
         N_sub = dimensions[3]  # int
         N_level = dimensions[4]  # int
+        if openva_app:
+            from PyQt5.QtWidgets import QApplication
 
         withPhy = C_phy > 1
 
@@ -889,9 +888,9 @@ class Sampler:
                 if not this_is_Unix:
                     popup.set_description("{k} {message}")
 
-            if self.openva_app:
+            if openva_app:
                 progress = int(100*k / N_gibbs)
-                self.openva_app.insilicova_pbar.setValue(progress)
+                openva_app.insilicova_pbar.setValue(progress)
                 QApplication.processEvents()
 
             # note this condition includes the first iteration

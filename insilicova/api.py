@@ -1283,7 +1283,8 @@ class InSilicoVA:
                     sigma2_continue=sigma2_last,
                     theta_continue=theta_last, C_phy=C_phy,
                     broader=broader, assignment=assignment,
-                    impossible=impossible)
+                    impossible=impossible,
+                    openva_app=self.openva_app)
                 fit_results = {"N_sub": N_sub, "C": C, "S": S,
                                "N_level": N_level,
                                "pool": pool, "fit": fit_add}

@@ -144,7 +144,8 @@ class Sampler:
         # counts of yes
         self.count_m = np.zeros((self.S, self.C), dtype=int)
         # counts of yes and no
-        self.c = np.zeros((self.S, self.C), dtype=int)
+        # self.c = np.zeros((self.S, self.C), dtype=int)
+        self.count_m_all = np.zeros((self.S, self.C), dtype=int)
         self.count_c = [0] * self.C
 
         # loop over all individuals

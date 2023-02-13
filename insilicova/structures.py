@@ -63,7 +63,7 @@ class InSilicoSummary:
             msg = (f"InSilico Call:\n"
                    f"{len(self.id_all)} deaths processed.\n"
                    f"{self.n_sim} iterations performed, "
-                   "with first {self.burnin} iterations discarded.\n"
+                   f"with first {self.burnin} iterations discarded.\n"
                    f"{n_iter} iterations saved after thinning.")
             msg_p_mat = "Fitted with re-estimating conditional probability matrix."
             if not self.update_cond_prob:

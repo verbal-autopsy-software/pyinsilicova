@@ -1266,8 +1266,8 @@ class InSilicoVA:
                 theta_last = results["theta_last"]
                 # same length as previous chain if added the first time
                 # double the length if the second time
-                n_sim = self.n_sim * 2
-                burnin = n_sim / 2
+                self.n_sim = self.n_sim * 2
+                self.burnin = self.n_sim / 2
                 N_gibbs = int(np.trunc(N_gibbs * (2**(add-1))))
                 burn = int(0)
                 keepProb = not self.update_cond_prob

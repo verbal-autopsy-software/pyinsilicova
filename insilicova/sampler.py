@@ -834,7 +834,8 @@ class Sampler:
                      zero_group_matrix[sub, :])**2)
 
                 # sigma2_now[sub] = 1 / rngG.gamma(shape, rate2 / 2)
-                sigma2_now[sub] = 1 / rngEngine.gamma(shape, rate2 / 2)
+                # sigma2_now[sub] = 1 / rngEngine.gamma(shape, rate2 / 2)
+                sigma2_now[sub] = 1 / rngEngine.gamma(shape, 2 / rate2)
                 # sample theta
                 theta_prev = list(theta_now[sub])
                 theta_now[sub] = insilico.thetaBlockUpdate(

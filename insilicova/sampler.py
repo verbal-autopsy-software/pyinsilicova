@@ -10,7 +10,7 @@ This module contains the wrapper class for the InsilicoVA algorithm.
 # from pandas import (DataFrame, Series)
 import numpy as np
 from scipy.stats import beta
-from random import Random
+# from random import Random
 from math import exp, log
 from time import time
 from tqdm import tqdm
@@ -258,7 +258,7 @@ class Sampler:
 
     # function to sample a multinomial, note the sampled y starts from 0!
     def sampleY(self, pnb: np.ndarray,
-                rand: np.random.Generator) -> list:
+                rand: np.random.Generator.uniform) -> list:
         # y = [None] * len(pnb)
         y = [0] * len(pnb)
         # loop over every death
@@ -283,7 +283,7 @@ class Sampler:
     def thetaBlockUpdate(self, jumprange: float, mu: list, sigma2: float,
                          theta: list, Y: list, jump_prop: bool,
                          rngN: np.random.Generator,
-                         rand: Random,
+                         rand: np.random.Generator.uniform,
                          zero_vector: list):
         # initalize jump range, use the same value for all causes
         # jump = [None] * self.C
@@ -349,7 +349,7 @@ class Sampler:
     #   key: 1 to C, second key: 1:N_level, value: which symptoms
     #   HashMap<Integer, HashMap<Integer, ArrayList<Integer>>> probbase_level;
     def truncBeta2(self,
-                   rand: Random,
+                   rand: np.random.Generator.uniform,
                    prior_a: list, prior_b: float,
                    trunc_min: float, trunc_max: float):
 
@@ -365,14 +365,15 @@ class Sampler:
         for s in range(self.S):
             # find which level-symptom combinations under this cause
             levels_under_s = self.probbase_level[s]
-            # get the conditional probabilities of each symptoms given cause c
+            # get the conditional probabilities of each symptom given cause c
             prob_under_s = self.probbase[s]
             # create new instance of this vector
             new_prob_under_s = [None] * self.C
             # find the list of all levels present under cause c
             exist_levels_under_s = []
             for l in range(1, self.N_level + 1):
-                if l in levels_under_s: exist_levels_under_s.append(l)
+                if l in levels_under_s:
+                    exist_levels_under_s.append(l)
             # loop over level l, in ascending order
             for index in range(len(exist_levels_under_s)):
                 l_current = exist_levels_under_s[index]
@@ -428,7 +429,8 @@ class Sampler:
                         else:
                             value = beta.ppf(
                                 # rand.random() * (ymax - ymin) + ymin)
-                                rand() * (ymax - ymin) + ymin)
+                                rand() * (ymax - ymin) + ymin,
+                                a=a, b=b)
 
                             if value == 0:
                                 print("lower %.6f, upper 5.6f, sampled 0\n",
@@ -444,7 +446,7 @@ class Sampler:
     # Note: between causes comparison not performed here. Truncation only performed within same cause
     # 
     # input:
-    # rand: randome number generator
+    # rand: random number generator
     # prior_a: prior of alpha vector
     # prior_b: prior of beta
     # trunc_max, trunc_Min: max/min of truncation
@@ -453,7 +455,7 @@ class Sampler:
     #   key: 1 to C, second key: 1:N_level, value: which symptoms
     #   HashMap<Integer, HashMap<Integer, ArrayList<Integer>>> probbase_level;
     def truncBeta(self,
-                  rand: Random,
+                  rand: np.random.Generator.uniform,
                   prior_a: list, prior_b: float,
                   trunc_min: float, trunc_max: float):
 
@@ -537,7 +539,8 @@ class Sampler:
                         else:
                             value = beta.ppf(
                                 # rand.random() * (ymax - ymin) + ymin)
-                                rand() * (ymax - ymin) + ymin)
+                                rand() * (ymax - ymin) + ymin,
+                                a=a, b=b)
                             if value == 0:
                                 print("lower %.6f, upper 5.6f, sampled 0\n",
                                       ymin, ymax)
@@ -551,7 +554,7 @@ class Sampler:
     # update cond.prob within the class. Return table vector.
     #
     # input:
-    # rand: randome number generator
+    # rand: random number generator
     # prior_a: prior of alpha vector
     # prior_b: prior of beta
     # last: current probbase
@@ -561,7 +564,7 @@ class Sampler:
     #   key: 1 to C, second key: 1:N_level, value: which symptoms
     #   HashMap<Integer, HashMap<Integer, ArrayList<Integer>>> probbase_level;
     def truncBeta_pool(self,
-                       rand: Random,
+                       rand: np.random.Generator.uniform,
                        prior_a: list, prior_b: float,
                        trunc_min: float, trunc_max: float):
 
@@ -620,7 +623,7 @@ class Sampler:
                         print("lower %.6f, upper 5.6f, sampled 0\n", ymin,
                               ymax)
                     new_level_values[l - 1] = value
-        self.level_values = new_level_values
+        self.level_values = new_level_values.copy()
         for s in range(self.S):
             for c in range(self.C):
                 self.probbase[s, c] = self.level_values[
@@ -743,10 +746,14 @@ class Sampler:
         if check_impossible:
             for i in range(N):
                 for k in range(len(impossible)):
-                    if indic[i][impossible[k][1] - 1] == 1 and impossible[k][2] == 0:
-                        zero_matrix[i][impossible[k][0] - 1] = 0
-                    if indic[i][impossible[k][1] - 1] == 0 and impossible[k][2] == 1:
-                        zero_matrix[i][impossible[k][0] - 1] = 0
+                    # if indic[i][impossible[k][1] - 1] == 1 and impossible[k][2] == 0:
+                    if indic[i][impossible[k][1]] == 1 and impossible[k][2] == 0:
+                        # zero_matrix[i][impossible[k][0] - 1] = 0
+                        zero_matrix[i][impossible[k][0]] = 0
+                    # if indic[i][impossible[k][1] - 1] == 0 and impossible[k][2] == 1:
+                    if indic[i][impossible[k][1]] == 0 and impossible[k][2] == 1:
+                        # zero_matrix[i][impossible[k][0] - 1] = 0
+                        zero_matrix[i][impossible[k][0]] = 0
         # check if specific causes are impossible for a whole subpopulation
         zero_group_matrix = np.zeros((N_sub, C))
         # remove_causes = [None] * N_sub
@@ -884,7 +891,9 @@ class Sampler:
                     message += f"Sub-population {sub} acceptance ratio: {ratio:.2f} "
                 print(message)
                 print(
-                    f"{(now - start) / 1000.0 / 60.0: .2f}min elapsed, {(now - start) / 1000.0 / 60.0 / (k + 0.0) * (N_gibbs - k): .2f}min remaining ")
+                    (f"{(now - start) / 1000 / 60: .2f}min elapsed, "
+                     f"{(now - start) / 1000 / 60 / (k) * (N_gibbs - k): .2f}"
+                     "min remaining "))
 
                 # output for windows pop up window
                 if not this_is_Unix:
@@ -1042,6 +1051,7 @@ class Sampler:
                     condprob[i, j, k] = condprob0[k * Nitr * S + j * Nitr + i]
 
         zero_matrix = np.ones((N, C))
+        # TODO: check the indices on impossible vs R (might not need -1)
         if impossible.shape[1] == 2:
             for i in range(N):
                 for k in range(impossible.shape[0]):
@@ -1106,6 +1116,7 @@ class Sampler:
                     condprob[i, j, k] = condprob0[k * Nitr * S + j * Nitr + i]
 
         zero_matrix = np.ones((N, C))
+        # TODO: check indices on impossible vs. R (might not need -1)
         if impossible.shape[1] == 2:
             for i in range(N):
                 for k in range(impossible.shape[0]):
@@ -1178,6 +1189,7 @@ class Sampler:
                     condprob[i, j, k] = condprob0[k * Nitr * S + j * Nitr + i]
 
         zero_matrix = np.ones((N, C))
+        # TODO: check indices on impossible vs. R (might not need -1)
         if impossible.shape[1] == 2:
             for i in range(N):
                 for k in range(impossible.shape[0]):

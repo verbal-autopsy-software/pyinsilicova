@@ -144,7 +144,6 @@ class Sampler:
         # counts of yes
         self.count_m = np.zeros((self.S, self.C), dtype=int)
         # counts of yes and no
-        # self.c = np.zeros((self.S, self.C), dtype=int)
         self.count_m_all = np.zeros((self.S, self.C), dtype=int)
         self.count_c = [0] * self.C
 
@@ -173,14 +172,9 @@ class Sampler:
             subpop: list,
             zero_matrix: np.ndarray) -> np.ndarray:
         # initialize p.nb matrix to p.hat
-        # nb = np.zeros((self.N, self.C))
         nb = np.empty((self.N, self.C))
-        # pnb_{nc} <- csmf_{subpop_n, c}
-        # for n in range(self.N):
-        #     # for c in range(self.C):
-        #     #     nb[n, c] = csmf_sub[subpop[n], c] * zero_matrix[n, c]
         subpop_unique = np.unique(subpop)
-        # subpop_unique.sort()
+        subpop_unique.sort()  # HERE
         for n in subpop_unique:
             tmp_index = np.where(subpop == n)[0]
             nb[tmp_index] = csmf_sub[n] * zero_matrix[tmp_index]
@@ -190,23 +184,9 @@ class Sampler:
             # find which symptoms are not missing for this death
             # nomissing = list of int
             nomissing = []
-            # for s in range(len(indic[n])):
-                # if indic[n, s] >= 0:
-                #     nomissing.append(s)
             s_extend = np.where(indic[n] >= 0)[0]
             nomissing.extend(s_extend.tolist())
             # loop over cause-symptoms combination to calculate naive bayes prob
-            # for c in range(self.C):
-            #     # for s in nomissing:
-            #     #     if indic[n, s] > 0:
-            #     #         nb[n, c] *= self.probbase[s, c]
-            #     #     else:
-            #     #         nb[n, c] *= (1 - self.probbase[s, c])
-            #     factor1 = self.probbase[nomissing, c]
-            #     factor2 = 1 - self.probbase[nomissing, c]
-            #     index1 = indic[n, nomissing] > 0
-            #     factor3 = np.prod(factor1[index1]) * np.prod(factor2[~index1])
-            #     nb[n, c] *= factor3
             factor1 = self.probbase[nomissing]
             factor2 = 1 - self.probbase[nomissing]
             index1 = indic[n, nomissing] > 0
@@ -215,10 +195,7 @@ class Sampler:
             nb[n] *= factor3
 
             # normalization
-            # nb[n] = np.linalg.norm(nb[n])
             nb[n] = nb[n]/sum(nb[n])
-        # nb = nb/nb.sum(axis=1)[:, None]
-        # nb = np.nan_to_num(nb)
         return nb
 
     # function to calculate p.nb with sub-population and physician coding
@@ -259,18 +236,6 @@ class Sampler:
     # function to sample a multinomial, note the sampled y starts from 0!
     def sampleY(self, pnb: np.ndarray,
                 rand: np.random.Generator.uniform) -> list:
-        # y = [None] * len(pnb)
-        y = [0] * len(pnb)
-        # loop over every death
-        # for n in range(len(pnb)):
-        #     # naive implementation of categorical distribution
-        #     u = rand.random()
-        #     cum = 0.0
-        #     for c in range(len(pnb[n])):
-        #         cum += pnb[n, c]
-        #         if u < cum:
-        #             y[n] = c
-        #             break
         u = rand(size=len(pnb)).reshape((len(pnb), 1))
         u = np.tile(u, pnb.shape[1])
         cum = pnb.cumsum(axis=1)
@@ -286,15 +251,11 @@ class Sampler:
                          rand: np.random.Generator.uniform,
                          zero_vector: list):
         # initalize jump range, use the same value for all causes
-        # jump = [None] * self.C
-        # for c in range(self.C):
-        #     jump[c] = jumprange
         jump = [jumprange] * self.C
 
         # if jump_prop, not using
 
         # initialize new theta
-        # theta_new = [None] * self.C
         theta_new = [0] * self.C
         # fix first theta (not removed)
         fix = 0
@@ -315,7 +276,6 @@ class Sampler:
 
         # calculate likelihood
         logTrans = 0.0
-        # l = Y * (theta_new - theta - log(expsum_new/expsum)) - ((theta_new - mu)^2 - (theta - mu)^2 ) / (2*sigma^2)
         for c in range(self.C):
             if zero_vector[c] > 0:
                 diffquad = (theta_new[c] - mu[c]) * (theta_new[c] - mu[c]) - (
@@ -324,15 +284,14 @@ class Sampler:
                     expsum_new / expsum)) - 1 / (2 * sigma2) * diffquad
 
         # accept or reject
-        # u = log(rand.random())
         u = log(rand())
         if logTrans >= u:
             # print("+")
             pass
         else:
             # print("-")
-            return (theta)
-        return (theta_new)
+            return theta
+        return theta_new
 
     # Update Sep 30, 2015: truncated beta for new SCI
     # function to perform Truncated beta distribution for the whole conditional probability matrix.
@@ -675,11 +634,6 @@ class Sampler:
         # double random engine
         sg = np.random.SeedSequence(seed)
         rngEngine = np.random.Generator(np.random.MT19937(sg))
-        # normal
-        rngN = rngEngine.normal(0.0, 1.0)
-        # gamma
-        rngG = rngEngine.gamma(1.0, 1.0)
-        # rand = Random(seed)
         rngU = rngEngine.uniform
 
         # calculate the dimension of values to save, and the interval of report (print message on screen
@@ -697,12 +651,10 @@ class Sampler:
         # individual probability at each thinned iteration
         pnb_mean = np.zeros((N, C))
         # number of acceptances
-        # naccept = [None] * N_sub
         naccept = [0] * N_sub
         # current mu
         mu_now = np.zeros((N_sub, C))
         # current sigma^2
-        # sigma2_now = [None] * N_sub
         sigma2_now = [None] * N_sub
         # current theta
         theta_now = np.zeros((N_sub, C))
@@ -718,7 +670,6 @@ class Sampler:
                 theta_now[sub][0] = 1
                 expsum = exp(1.0)
                 for c in range(1, C):
-                    # theta_now[sub][c] = log(rand.random() * 100.0)
                     theta_now[sub][c] = log(rngU() * 100.0)
                     expsum += exp(theta_now[sub][c])
                 for c in range(C):
@@ -739,24 +690,15 @@ class Sampler:
         # check impossible causes?
         check_impossible = len(impossible[0]) == 3
         zero_matrix = np.ones((N, C))
-        # zero_matrix = np.zeros((N, C))
-        # for i in range(N):
-        #     for j in range(C):
-        #         zero_matrix[i][j] = 1
         if check_impossible:
             for i in range(N):
                 for k in range(len(impossible)):
-                    # if indic[i][impossible[k][1] - 1] == 1 and impossible[k][2] == 0:
                     if indic[i][impossible[k][1]] == 1 and impossible[k][2] == 0:
-                        # zero_matrix[i][impossible[k][0] - 1] = 0
                         zero_matrix[i][impossible[k][0]] = 0
-                    # if indic[i][impossible[k][1] - 1] == 0 and impossible[k][2] == 1:
                     if indic[i][impossible[k][1]] == 0 and impossible[k][2] == 1:
-                        # zero_matrix[i][impossible[k][0] - 1] = 0
                         zero_matrix[i][impossible[k][0]] = 0
         # check if specific causes are impossible for a whole subpopulation
         zero_group_matrix = np.zeros((N_sub, C))
-        # remove_causes = [None] * N_sub
         remove_causes = [0] * N_sub
         if check_impossible:
             for j in range(C):
@@ -768,12 +710,9 @@ class Sampler:
                         zero_group_matrix[i][j] = 0
                     else:
                         zero_group_matrix[i][j] = 1
-                    # zero_group_matrix[i][j] == 0
                     remove_causes[i] += 1 - zero_group_matrix[i][j]
         else:
-            for i in range(N_sub):
-                for j in range(self.C):
-                    zero_group_matrix[i][j] = i
+            zero_group_matrix = np.ones((N_sub, C))
 
         # reinitiate after checking impossible
         if not isAdded:
@@ -787,18 +726,15 @@ class Sampler:
                 theta_now[sub][fix] = 1
                 expsum = exp(1.0)
                 for c in range(fix + 1, self.C):
-                    # theta_now[sub][c] = log(rand.random() * 100.0)
                     theta_now[sub][c] = log(rngU() * 100.0)
                     expsum += exp(theta_now[sub][c]) * zero_group_matrix[sub][c]
                 for c in range(self.C):
                     p_now[sub][c] = exp(theta_now[sub][c]) * zero_group_matrix[sub][c] / expsum
 
         # first time pnb (naive bayes probability) calculation, note it is inverse of R verion
-        pnb = np.empty((self.N, self.C))
         if not withPhy:
             pnb = insilico.pnb(1, indic, p_now, subpop, zero_matrix)
         else:
-            # g_new = insilico.sampleY(assignment, rand)
             g_new = insilico.sampleY(assignment, rngU)
             pnb = insilico.pnb2(1, indic, p_now, subpop, g_new, zero_matrix)
 
@@ -811,16 +747,11 @@ class Sampler:
                 popup.update(1)
                 popup.refresh()
             # sample new y vector
-            # y_new = insilico.sampleY(pnb, rand)
             y_new = insilico.sampleY(pnb, rngU)
             if withPhy:
-                # g_new = insilico.sampleY(assignment, rand)
                 g_new = insilico.sampleY(assignment, rngU)
             # count the appearance of each cause
-            # Y = np.array((N_sub, C))
             Y = np.zeros((N_sub, C))
-            # for n in range(self.N):
-            #     Y[subpop[n]][y_new[n]] += 1
             for i in np.unique(subpop):
                 y_new_tab = np.unique(y_new, return_counts=True)
                 Y[i, y_new_tab[0]] = y_new_tab[1]
@@ -828,8 +759,7 @@ class Sampler:
             for sub in range(N_sub):
                 # sample mu
                 mu_mean = sum(theta_now[sub, :])
-                mu_mean = mu_mean / (self.C - remove_causes[sub] + 0.0)
-                # mu_mean = rngN.random()
+                mu_mean = mu_mean / (self.C - remove_causes[sub])
                 sd_tmp = np.sqrt(sigma2_now[sub]/(C - remove_causes[sub]))
                 mu_mean = rngEngine.normal(mu_mean, sd_tmp)
                 mu_now[sub, :] = mu_mean
@@ -839,9 +769,6 @@ class Sampler:
                 rate2 = sum(
                     (theta_now[sub, :] - mu_now[sub, :] *
                      zero_group_matrix[sub, :])**2)
-
-                # sigma2_now[sub] = 1 / rngG.gamma(shape, rate2 / 2)
-                # sigma2_now[sub] = 1 / rngEngine.gamma(shape, rate2 / 2)
                 sigma2_now[sub] = 1 / rngEngine.gamma(shape, 2 / rate2)
                 # sample theta
                 theta_prev = list(theta_now[sub])
@@ -861,15 +788,12 @@ class Sampler:
             if not useProbbase:
                 insilico.countCurrent(indic, y_new)
                 if pool == 0:
-                    # insilico.truncBeta_pool(rand, prior_a, prior_b, trunc_min,
                     insilico.truncBeta_pool(rngU, prior_a, prior_b, trunc_min,
                                             trunc_max)
                 elif pool == 1:
-                    # insilico.truncBeta(rand, prior_a, prior_b, trunc_min,
                     insilico.truncBeta(rngU, prior_a, prior_b, trunc_min,
                                        trunc_max)
                 elif pool == 2:
-                    # insilico.truncBeta2(rand, prior_a, prior_b, trunc_min,
                     insilico.truncBeta2(rngU, prior_a, prior_b, trunc_min,
                                         trunc_max)
 
@@ -908,23 +832,11 @@ class Sampler:
             if k >= burn and (k - burn + 1) % thin == 0:
                 save = int((k - burn + 1) / thin) - 1
 
-                # for d1 in range(self.N):
-                #     for d2 in range(self.C):
-                #         pnb_mean[d1][d2] += pnb[d1][d2]
                 pnb_mean = pnb_mean + pnb
-                # for d1 in range(N_sub):
-                #     for d2 in range(self.C):
-                #         p_gibbs[save][d1][d2] = p_now[d1][d2]
                 p_gibbs[save] = p_now.copy()
                 if pool == 0:
-                    # for d1 in range(N_level):
-                    #     levels_gibbs[save][d1] = insilico.level_values[d1]
                     levels_gibbs[save] = insilico.level_values.copy()
                 else:
-                    # for d1 in range(self.S):
-                    #     for d2 in range(self.C):
-                    #         probbase_gibbs[save][d1][d2] = \
-                    #             insilico.probbase[d1][d2]
                     probbase_gibbs[save] = insilico.probbase.copy()
 
         # close windows pop up window
@@ -1002,28 +914,6 @@ class Sampler:
         print("Organizing output, might take a moment...")
 
         return parameters
-
-    # @param DontAsk: M by 8 matrix (java index + 1, 0 if not exist)
-    # @param AskIf: M by 2 matrix (java index + 1, 0 if not exist)
-    # @param data: N by M matrix
-    # @param warningfile: warning file
-    # @return
-    def Datacheck(self, DontAsk: np.ndarray, AskIf: np.ndarray,
-                  zero_to_missing_list: list, data: np.ndarray, ids: list,
-                  symps: list, warningfile: str):
-        pass
-
-    # @param DontAsk: M by 8 matrix (java index + 1, 0 if not exist)
-    # @param AskIf: M by 2 matrix (java index + 1, 0 if not exist)
-    # @param data: N by M matrix
-    # @return
-    def Datacheck(self, DontAsk: np.ndarray, AskIf: np.ndarray,
-                  zero_to_missing_list: list, data: np.ndarray):
-        ids = []
-        symps = []
-        warningfile = "warnings.txt"
-        return self.Datacheck(DontAsk, AskIf, zero_to_missing_list, data, ids,
-                              symps, warningfile)
 
     def IndivProb(self, data: np.ndarray,
                   impossible: np.ndarray,

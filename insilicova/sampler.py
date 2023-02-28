@@ -805,9 +805,10 @@ class Sampler:
         # start loop
         start = time() * 1000
         # popup window under non-unix system
-        popup = tqdm(total=N_gibbs)
+        if openva_app is None:
+            popup = tqdm(total=N_gibbs)
         for k in range(N_gibbs):
-            if not this_is_Unix:
+            if not this_is_Unix and openva_app is None:
                 popup.update(1)
                 popup.refresh()
             # sample new y vector
@@ -896,7 +897,7 @@ class Sampler:
                      "min remaining "))
 
                 # output for windows pop up window
-                if not this_is_Unix:
+                if not this_is_Unix and openva_app is None:
                     popup.set_description(f"{k} {message}")
 
             if openva_app:

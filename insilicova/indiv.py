@@ -14,7 +14,7 @@ from insilicova.exceptions import ArgumentException, DataException
 from insilicova.sampler import Sampler
 from insilicova.utils import get_vadata
 import warnings
-from pandas import DataFrame
+from pandas import DataFrame, concat
 from numpy import apply_along_axis, array, delete, nan, ones, zeros
 from typing import Dict, Union
 
@@ -23,7 +23,7 @@ def get_indiv(insilico_obj: InSilico,
               ci: float = 0.95,
               is_aggregate: bool = False,
               by: Union[None, list] = None,
-              is_sample: bool = False) -> Dict:
+              is_sample: bool = False) -> DataFrame:
     """
     This function calculates individual probabilities for each death and
     provide posterior credible intervals for each estimate. The default set up
@@ -49,7 +49,7 @@ def get_indiv(insilico_obj: InSilico,
     :returns: Individual mean COD distribution array (mean); individual median
     COD distribution array (median); individual lower & upper bounds for each
     COD probability (lower & upper).
-    :rtype: dictionary of numpy arrays
+    :rtype: DataFrame
     """
     id = insilico_obj.id
     # if grouping is provided
@@ -92,12 +92,15 @@ def get_indiv(insilico_obj: InSilico,
         else:
             datagroup_all["final_group"] = datagroup_all[col_index[1]].copy()
         # get the group name of subset in insilico fitted data
-        index_tmp = va_data.iloc[:, 0].isin(insilico_obj.data_final.index)
+        index_tmp = datagroup_all["ID"].isin(insilico_obj.data_final.index)
         if sum(index_tmp) == 0:
             raise DataException("No matching ID found in the data.")
         datagroup = datagroup_all["final_group"][index_tmp].copy()
+        datagroup = datagroup.dropna()
         allgroups = list(datagroup.sort_values().unique())
         datagroup = [allgroups.index(i) if i in allgroups else nan
+                     for i in datagroup]
+        datagroup_all["final_group"] = [allgroups.index(i) if i in allgroups else nan
                      for i in datagroup_all["final_group"]]
         n_groups = len(allgroups)
 
@@ -206,16 +209,163 @@ def get_indiv(insilico_obj: InSilico,
         indivprob_ext = np.column_stack((np.repeat(id_indprob_ext, d1),
                                          np.tile(np.arange(1, (d1 + 1), d0)),
                                          indivprob_ext))
+        # TODO: test if list(insilico_obj.indiv_prob) should be
+        #       indivprob_cause_names (not using it)
         colnames = ["ID", "Iteration"] + list(insilico_obj.indiv_prob)
         indivprob_ext = DataFrame(indivprob_ext, columns=colnames)
         return indivprob_ext
-    elif (not is_aggregate) and  (not is_sample):
+    elif (not is_aggregate) and (not is_sample):
         print("Calculating individual COD distributions...\n")
+        indiv = Sampler.IndivProb(
+            data=insilico_obj.data_final.to_numpy(),
+            impossible=insilico_obj.impossible_causes,
+            csmf=csmf,
+            subpop=subpop,
+            condprob=condprob,
+            p0=(1 - ci)/2,
+            p1=1 - (1 - ci)/2,
+            Nsub=n_sub,
+            Nitr=n_itr,
+            C=c,
+            S=s)
+        # if not customized probbase, use longer cause names for output
+        if not insilico_obj.is_customized:
+            if insilico_obj.data_type == "WHO2012":
+                causetext = get_vadata("causetext", verbose=False)
+            else:
+                causetext = get_vadata("causetextV5", verbose=False)
+            pb_colnames = list(insilico_obj.probbase_colnames)
+            match_cause = [pb_colnames.index(i) if i in pb_colnames else np.nan
+                           for i in causetext.iloc[:, 0]]
+            match_cause = np.array(match_cause)
+            index_cause = np.argsort(match_cause[~np.isnan(match_cause)])
+            indivprob_cause_names = causetext.iloc[index_cause, 1]
+        else:
+            indivprob_cause_names = insilico_obj.probbase_colnames
+        k = int(indiv.shape[0] / 4)
+        # add back all external cause of death 41-51 in standard VA
+        if insilico_obj.external:
+            external_causes = insilico_obj.external_causes
+            c0 = indiv.shape[1]
+            ext_flag = insilico_obj.indiv_prob.iloc[:, external_causes].sum(axis=1)
+            ext_probs = insilico_obj.indiv_prob.loc[ext_flag > 0, :]
+            zero_filler = np.zeros((indiv.shape[0], len(external_causes)))
+            indiv = np.concatenate(
+                    (indiv[:, :external_causes[0]],
+                     zero_filler,
+                     indiv[:, external_causes[0]:c0]),
+                    axis=1)
+            id_list = id.to_list()
+            match_id = [id_list.index(i) for i in insilico_obj.data_final.index]
+            id_out = id.iloc[match_id].to_list()
+            id_out.extend(id[ext_flag.to_numpy() > 0].to_list())
+        else:
+            id_out = id
+            ext_probs = None
+        mean = indiv[:k, :]
+        median = indiv[k:(2*k), :]
+        lower = indiv[(2*k):(3*k), :]
+        upper = indiv[(3*k):(4*k), :]
+        if ext_probs is not None:
+            mean = np.concatenate((mean, ext_probs), axis=0)
+            median = np.concatenate((median, ext_probs), axis=0)
+            lower = np.concatenate((lower, ext_probs), axis=0)
+            upper = np.concatenate((upper, ext_probs), axis=0)
+        mean = DataFrame(mean, columns=list(insilico_obj.indiv_prob))
+        mean.insert(loc=0, column="Statistic", value="mean")
+        mean.insert(loc=0, column="ID", value=id_out)
+        median = DataFrame(median, columns=list(insilico_obj.indiv_prob))
+        median.insert(loc=0, column="Statistic", value="median")
+        median.insert(loc=0, column="ID", value=id_out)
+        lower = DataFrame(lower, columns=list(insilico_obj.indiv_prob))
+        lower.insert(loc=0, column="Statistic", value="lower")
+        lower.insert(loc=0, column="ID", value=id_out)
+        upper = DataFrame(upper, columns=list(insilico_obj.indiv_prob))
+        upper.insert(loc=0, column="Statistic", value="upper")
+        upper.insert(loc=0, column="ID", value=id_out)
+        indiv_out = concat((mean, median, lower, upper), axis=0)
+        return indiv_out
     else:
         print("Aggregating individual COD distributions...\n")
+        indiv = Sampler.AggIndivProb(
+            data=insilico_obj.data_final.to_numpy(),
+            impossible=insilico_obj.impossible_causes,
+            csmf=csmf,
+            subpop=subpop,
+            condprob=condprob,
+            group=datagroup,
+            Ngroup=n_groups,
+            p0=(1 - ci)/2,
+            p1=1 - (1 - ci)/2,
+            Nsub=n_sub,
+            Nitr=n_itr,
+            C=c,
+            S=s)
+        if insilico_obj.data_type == "WHO2012":
+            causetext = get_vadata("causetext", verbose=False)
+        else:
+            causetext = get_vadata("causetextV5", verbose=False)
+        weight = indiv[:, (indiv.shape[1] - 1)]
+        indiv = indiv[:, :(indiv.shape[1] - 1)]
+        pb_colnames = list(insilico_obj.probbase_colnames)
+        match_cause = [pb_colnames.index(i) if i in pb_colnames else np.nan
+                       for i in causetext.iloc[:, 0]]
+        match_cause = np.array(match_cause)
+        index_cause = np.argsort(match_cause[~np.isnan(match_cause)])
+        indivprob_cause_names = causetext.iloc[index_cause, 1]
+        k = int(indiv.shape[0] / 4)
+
+        # add back all external cause of death 41:51 in standard VA
+        if insilico_obj.external:
+            external_causes = insilico_obj.external_causes
+            c0 = indiv.shape[1]
+            ext_flag = insilico_obj.indiv_prob.iloc[:, external_causes].sum(axis=1)
+            ext_probs = insilico_obj.indiv_prob.loc[ext_flag > 0, :]
+            ext_probs = ext_probs.iloc[:, external_causes]
+            ext_probs["ID"] = ext_probs.index.copy()
+            ext_probs = ext_probs.merge(datagroup_all[["ID", "final_group"]])
+            prob_columns = set(list(ext_probs)).difference(["ID", "final_group"])
+            prob_columns = list(prob_columns)
+            ext_probs_agg = np.zeros((len(allgroups), len(prob_columns)))
+            ext_weight = np.zeros(len(allgroups))
+            for i in range(len(allgroups)):
+                this_group = ext_probs["final_group"] == i
+                if sum(this_group) > 0:
+                    ext_probs_agg[i, :] = ext_probs.loc[this_group, prob_columns].mean(axis=0)
+                    ext_weight[i] = sum(this_group)
+                    ext_probs_agg[i, :] *= ext_weight[i]
+            ext_probs_agg_4fold = np.concatenate(
+                (ext_probs_agg, ext_probs_agg, ext_probs_agg, ext_probs_agg))
+            # multiply group size
+            indiv = indiv * weight[:, None]
+            indiv = np.concatenate(
+                (indiv[:, :external_causes[0]],
+                 ext_probs_agg_4fold,
+                 indiv[:, external_causes[0]:c0]), axis=1)
+            # divide by full size
+            indiv = indiv / (weight + np.tile(ext_weight, 4))[:, None]
+        else:
+            id_out = id
+            ext_probs = None
+        indiv = DataFrame(indiv, columns=list(insilico_obj.indiv_prob))
+        if by is None:
+            indiv = indiv.transpose()
+            indiv.columns = ["Mean", "Median", "Lower", "Upper"]
+        else:
+            indiv.insert(loc=0,
+                         column="Statistic",
+                         value=np.repeat(["mean", "median", "lower", "upper"], 2))
+            indiv.insert(loc=0,
+                         column="Group",
+                         value=np.tile(allgroups, 4))
+        return indiv
 
 def update_indiv(insilico_obj: InSilico,
-                 ci: float = 0.95):
+                 data: Union[None, DataFrame],
+                 ci: float = 0.95,
+                 is_aggregate: bool = False,
+                 by: Union[None, list] = None,
+                 is_sample: bool = False) -> None:
     """
     Update individual COD probabilities from InSilicoVA Model Fits
 
@@ -224,9 +374,36 @@ def update_indiv(insilico_obj: InSilico,
 
     :param insilico_obj: Fitted InSilicoVA object (InSilicoVA.get_results())
     :type insilico_obj: InSilico
+    :param data: Data for the fitted InSilico object. The first column of the
+    data should be the ID that matches the InSilico fitted model.
+    :type data: DataFrame
     :param ci:  Width of credible interval for posterior estimates.
     :type ci: float
-    :returns: Updated InSilico object
-    :rtype: InSilico
+    :param is_aggregate: Indicator for constructing aggregated distribution
+    rather than individual distributions.
+    :type is_aggregate: bool
+    :param by: List of column names to group by.
+    :type by: list (or None)
+    :param is_sample: Indicator for returning the posterior samples of
+    individual probabilities instead of posterior summaries.
+    :type is_sample: bool
     """
-    pass
+    indiv = get_indiv(insilico_obj=insilico_obj,
+                      data=data,
+                      ci=ci,
+                      is_aggregate=is_aggregate,
+                      by=by,
+                      is_sample=is_sample)
+    median = indiv.loc[indiv["Statistic"] == "median"]
+    median = median.drop("Statistic", axis=1)
+    lower = indiv.loc[indiv["Statistic"] == "lower"]
+    lower = lower.drop("Statistic", axis=1)
+    upper = indiv.loc[indiv["Statistic"] == "upper"]
+    upper = upper.drop("Statistic", axis=1)
+    insilico_obj.indiv_prob_median = median
+    insilico_obj.indiv_prob_lower = lower
+    insilico_obj.indiv_prob_upper = upper
+    insilico_obj.indiv_ci = ci
+    # TODO: need to account for different options (e.g., is_sample=True,
+    #       is_aggregate=True and by=None)
+    return insilico_obj

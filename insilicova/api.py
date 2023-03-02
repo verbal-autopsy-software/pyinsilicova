@@ -1514,6 +1514,7 @@ class InSilicoVA:
                                 csmf=p_hat,
                                 conditional_probs=probbase_gibbs,
                                 probbase=self._prob_orig,
+                                probbase_colnames=self._prob_orig_colnames,
                                 missing_symptoms=self._missing_all,
                                 external=self.external_sep,
                                 external_causes=self._external_causes,

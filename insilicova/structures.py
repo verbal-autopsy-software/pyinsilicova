@@ -100,6 +100,7 @@ class InSilico:
     csmf: Dict
     conditional_probs: np.ndarray
     probbase: np.ndarray
+    probbase_colnames: np.ndarray
     missing_symptoms: np.ndarray
     external: bool
     external_causes: np.ndarray
@@ -137,6 +138,7 @@ class InSilico:
         csmf=p_hat,
         conditional_probs=probbase_gibbs,
         probbase=self._prob_orig,
+        probbase_colnames=self._prob_orig_colnames,
         missing_symptoms=self._missing_all,
         external=self.external_sep,
         external_causes=self._external_causes,
@@ -194,7 +196,7 @@ class InSilico:
             self.get_summary(ci_csmf=ci_csmf, top=top, verbose=False)
         if isinstance(self.summary.csmf_ordered, dict):
             csmf_out = {}
-            for k, v in self.csmf.csmf_order.items():
+            for k, v in self.summary.csmf_ordered.items():
                 csmf_out[k] = v.iloc[0:top, :].copy()
         else:
             csmf_out = self.summary.csmf_ordered.iloc[0:top, :]

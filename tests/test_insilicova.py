@@ -14,7 +14,7 @@ va_data = get_vadata("randomva5", verbose=False)
 
 
 with pytest.warns(UserWarning):
-    default = InSilicoVA(va_data, subpop=["i019a"], n_sim=10, burnin=1, 
+    default = InSilicoVA(va_data, subpop=["i019a"], n_sim=10, burnin=1,
                          thin=1, auto_length=False)
 
 va_data1 = get_vadata("randomva1", verbose=False)
@@ -202,6 +202,15 @@ def test_prep_data_error_2016():
     tmp_data.drop(columns=va_data.columns[33], inplace=True)
     with pytest.raises(DataException):
         out = InSilicoVA(tmp_data, data_type="WHO2016")
+
+def test_prep_data_no_valid_records():
+    tmp_data = va_data.copy()
+    tmp_data.iloc[:, 1:] = "."
+    out = InSilicoVA(tmp_data, data_type="WHO2016", run=False)
+    assert len(out._error_log) == 0
+    out._run()
+    assert hasattr(out, "_data_checked") is False
+    assert len(out._error_log) == tmp_data.shape[0]
 
 
 def test_prep_data_2016():

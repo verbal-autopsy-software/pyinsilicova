@@ -229,9 +229,9 @@ class InSilicoVA:
             msg = f"""
             InSilicoVA:
             {self.data.shape[0]} deaths loaded
-            {self.n_sim} iterations requested (the first {self.burnin} iterations will be discarded
-            {int(n_iter)} iterations will saved after thinning
-            (no results yet, need to use run() method)
+            {self.n_sim} iterations requested (the first {self.burnin} 
+            iterations will be discarded {int(n_iter)} iterations will saved 
+            after thinning (no results yet, need to use run() method)
             """
             return msg
 
@@ -251,6 +251,8 @@ class InSilicoVA:
             self._prep_data_custom()
         else:
             self._prep_data()
+        if self.data.shape[0] == 0:
+            return None
         self._standardize_upper()
         if self.datacheck:
             self._datacheck()

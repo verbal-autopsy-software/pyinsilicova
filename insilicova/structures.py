@@ -346,3 +346,12 @@ class InSilico:
             indiv_prob=indiv_prob,
             indiv_ci=self.indiv_ci,
             data_type=self.data_type)
+
+
+@dataclass
+class InSilicoAllExt:
+    """Class for holding results where all causes are external."""
+    id: pd.Series
+    causes: pd.DataFrame
+    # data_final: pd.DataFrame
+    # data_checked: pd.DataFrame

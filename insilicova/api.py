@@ -7,12 +7,15 @@ insilicova.insilicova
 This module contains the class for the InSilicoVA algorithm.
 """
 
-from .exceptions import ArgumentException, DataException
+from __future__ import annotations
+from .exceptions import ArgumentException, DataException, InSilicoVAException
 from .utils import get_vadata
 from .sampler import Sampler
 from .diag import csmf_diag
-from .structures import InSilico
-from typing import Union, Dict
+from .structures import InSilico, InSilicoAllExt
+from typing import Union, Dict, TYPE_CHECKING
+if TYPE_CHECKING:
+    import PyQt5
 from vacheck.datacheck5 import datacheck5
 import warnings
 import os
@@ -70,7 +73,8 @@ class InSilicoVA:
                  indiv_ci: Union[None, float] = None,
                  groupcode: bool = False,
                  run: bool = True,
-                 openva_app=None) -> None:
+                 openva_app: Union[None,
+                                   PyQt5.QtWidgets.QtWidget] = None) -> None:
 
         # instance attributes from arguments
         self.data = data.copy()
@@ -156,7 +160,7 @@ class InSilicoVA:
         self._prob_order: np.ndarray
         # _table_dev and _table_num_dev are not yet implemented
         self._table_dev: np.ndarray = np.array([chr(x) for x in range(65, 80)])
-        self._table_num_dev: np.ndarray = np.arange(1, 16)/15
+        self._table_num_dev: np.ndarray = np.arange(1, 16) / 15
         # attributes set by self._check_data_dimensions()
         self._va_causes_current: pd.Series
         # attributes set by self._check_impossible_pairs()
@@ -215,14 +219,14 @@ class InSilicoVA:
             self._run()
 
     def __str__(self):
+        # TODO: update to handle case where all causes are external
         if hasattr(self, "results"):
-            n_iter = (self.n_sim - self.burnin)/self.thin
-            msg = f"""
-            InSilicoVA:
-            {self.results.data_final.shape[0]} deaths processed
-            {self.n_sim} iterations performed, with the first {self.burnin} iterations discarded
-            {int(n_iter)} iterations saved after thinning
-            """
+            n_iter = (self.n_sim - self.burnin) / self.thin
+            msg = ("InSilicoVA:\n"
+                   f"{self.results.data_final.shape[0]} deaths processed\n"
+                   f"{self.n_sim} iterations performed, with the first "
+                   f"{self.burnin} iterations discarded\n"
+                   f"{int(n_iter)} iterations saved after thinning\n")
             return msg
         else:
             n_iter = (self.n_sim - self.burnin) / self.thin
@@ -252,6 +256,11 @@ class InSilicoVA:
         else:
             self._prep_data()
         if self.data.shape[0] == 0:
+            warnings.warn(
+                "NO VALID VA RECORDS (datacheck procedure invalidated all "
+                "deaths)!  \nUnable to analyze data set.  Use get_errors() "
+                "method for more details.",
+                UserWarning)
             return None
         self._standardize_upper()
         if self.datacheck:
@@ -305,9 +314,9 @@ class InSilicoVA:
     def _check_args(self):
         """Check for valid arguments."""
         if self.data_type not in VALID_DATA_TYPES:
-            valid_str = ", ".join(VALID_DATA_TYPES)
+            val_str = ", ".join(VALID_DATA_TYPES)
             raise ArgumentException(
-                f"Error: data_type must be one of the following: {valid_str}\n")
+                f"Error: data_type must be one of the following: {val_str}\n")
         if self.data_type == "WHO2016" and "i183o" in list(self.data):
             warnings.warn("Due to the inconsistent names in the early version "
                           "of InterVA5, the indicator 'i183o' has been "
@@ -362,9 +371,11 @@ class InSilicoVA:
         self._probbase_colnames = np.array(list(df_probbase))
         self._probbase = df_probbase.to_numpy(dtype=str)
         if self.groupcode:
-            self._causetext.drop(columns=list(self._causetext)[1], inplace=True)
+            self._causetext.drop(columns=list(self._causetext)[1],
+                                 inplace=True)
         else:
-            self._causetext.drop(columns=list(self._causetext)[2], inplace=True)
+            self._causetext.drop(columns=list(self._causetext)[2],
+                                 inplace=True)
 
     def _extract_subpop(self):
         """Set subpop attribute."""
@@ -520,8 +531,8 @@ class InSilicoVA:
         :type min_level: None or float
         :param table_num_dev: customized values
         :type table_num_dev: numpy.ndarray of floats
-        :returns: numeric values for mapping of InterVA _probbase levels (grades)
-        to probabilities
+        :returns: numeric values for mapping of InterVA _probbase levels
+        (grades) to probabilities
         :rtype: numpy.ndarray
         """
 
@@ -805,11 +816,15 @@ class InSilicoVA:
             n_subpops = len(self._subpop_order_list)
             self._ext_sub = self.subpop.loc[ext_where].copy()
         prob_sub = self._change_inter(
-            self._prob_orig[np.ix_(self._external_symps, self._external_causes)])
+            self._prob_orig[np.ix_(self._external_symps,
+                                   self._external_causes)])
         csmf_sub = self._change_inter(
             csmf_orig[self._external_causes])
-        self._prob_orig = np.delete(self._prob_orig, self._external_symps, axis=0)
-        self._prob_orig = np.delete(self._prob_orig, self._external_causes,
+        self._prob_orig = np.delete(self._prob_orig,
+                                    self._external_symps,
+                                    axis=0)
+        self._prob_orig = np.delete(self._prob_orig,
+                                    self._external_causes,
                                     axis=1)
         self._prob_orig_colnames = np.delete(self._prob_orig_colnames,
                                              self._external_causes,
@@ -872,10 +887,12 @@ class InSilicoVA:
             if self.data_type == "WHO2012":
                 pass
             else:
-                self.results = pd.DataFrame({"ID": self._ext_id})
+                causes = pd.DataFrame({"ID": self._ext_id})
                 names_external_causes = self._va_causes[self._external_causes]
                 for i, val in enumerate(names_external_causes):
-                    self.results[val] = self._ext_prob[:, i]
+                    causes[val] = self._ext_prob[:, i]
+                self.results = InSilicoAllExt(id=self._ext_id,
+                                              causes=causes)
 
     def _check_missing_all(self):
         """
@@ -893,15 +910,18 @@ class InSilicoVA:
             missing_all_names = ", ".join(
                 self._probbase[missing_all_plus1,
                                int(self.data_type == "WHO2012")])
-            warnings.warn(f"{len(self._missing_all)} symptoms missing completely "
-                          "and added to missing list. \n List of missing "
-                          f"symptoms: {missing_all_names}\n",
+            warnings.warn(f"{len(self._missing_all)} symptoms missing "
+                          "completely and added to missing list. \n List of "
+                          f"missing symptoms: {missing_all_names}\n",
                           UserWarning)
             drop_col_names = list(self.data.iloc[:, missing_all_plus1])
             self.data.drop(columns=drop_col_names, inplace=True)
-            self._prob_orig = np.delete(self._prob_orig, self._missing_all, axis=0)
+            self._prob_orig = np.delete(self._prob_orig,
+                                        self._missing_all,
+                                        axis=0)
             if self._negate is not None:
-                self._negate = np.delete(self._negate, self._missing_all, axis=0)
+                self._negate = np.delete(self._negate, self._missing_all,
+                                         axis=0)
 
     def _initialize_numerical_matrix(self):
         if not self._customization_dev:
@@ -938,12 +958,9 @@ class InSilicoVA:
             raise DataException(
                 "Not enough observations in the sample to run InSilicoVA.\n"
             )
-        n_symptoms_ok = (self.data.shape[1] - 1) == self._cond_prob_true.shape[
-            0]
-        if n_symptoms_ok is False:
-            raise DataException(
-                "Number of symptoms is not right. \n"
-            )
+        n_symp_ok = (self.data.shape[1] - 1) == self._cond_prob_true.shape[0]
+        if n_symp_ok is False:
+            raise DataException("Number of symptoms is not right. \n")
         if self.external_sep:
             self._va_causes_current = self._va_causes[
                 self._external_causes].copy()
@@ -964,7 +981,8 @@ class InSilicoVA:
         if self.impossible_combination is not None:
             impossible_colnames = list(self.impossible_combination)
 
-        if self.exclude_impossible_causes != "none" and self._customization_dev is False:
+        if self.exclude_impossible_causes != "none" and \
+                self._customization_dev is False:
             if self.exclude_impossible_causes in ["subset", "subset2"]:
                 if self.data_type == "WHO2012":
                     demog_set = ["elder", "midage", "adult", "child", "under5",
@@ -995,7 +1013,8 @@ class InSilicoVA:
                 add_impossible = pd.DataFrame(
                     {impossible_colnames[0]: ["i310o"] * 9})
                 col1_values = ["b_0901", "b_0902", "b_0903", "b_0904",
-                               "b_0905", "b_0906", "b_0907", "b_0908", "b_0999"]
+                               "b_0905", "b_0906", "b_0907", "b_0908",
+                               "b_0999"]
                 add_impossible[impossible_colnames[1]] = col1_values
                 add_impossible[impossible_colnames[2]] = 1
 
@@ -1020,12 +1039,13 @@ class InSilicoVA:
                         val_not_prem = int(self._negate[ss] is False)
                 cc_only_prem = self._va_causes_current == "Prematurity"
                 if ss is not None and sum(cc_only_prem) == 1:
-                    cc_only_index = self._va_causes_current[cc_only_prem].index[
-                        0]
+                    cc_only_index = self._va_causes_current[
+                        cc_only_prem].index[0]
                     impossible.append([cc_only_index, ss, val_only_prem])
                 cc_not_prem = self._va_causes_current == "Birth asphyxia"
                 if ss is not None and sum(cc_not_prem) == 1:
-                    cc_not_index = self._va_causes_current[cc_not_prem].index[0]
+                    cc_not_index = self._va_causes_current[
+                        cc_not_prem].index[0]
                     impossible.append([cc_not_index, ss, val_not_prem])
 
             if self.impossible_combination is not None:
@@ -1040,15 +1060,16 @@ class InSilicoVA:
 
         elif self.impossible_combination is not None:
             for ii in self.impossible_combination.itertuples(index=False):
-                if ii[0] in data_colnames and ii[1] in self._prob_orig_colnames:
+                if ii[0] in data_colnames and \
+                        ii[1] in self._prob_orig_colnames:
                     val = 1 - int(ii[2])
                     ss_index = data_colnames.index(ii[0])
                     cc_index = np.argwhere(
                         self._prob_orig_colnames == ii[1])[0][0]
                     impossible.append([cc_index, ss_index, val])
         else:
-            # java checks if _impossible has 3 columns and sets check _impossible
-            # cause flag to False if it has 4 columns
+            # java checks if _impossible has 3 columns and sets check
+            # _impossible cause flag to False if it has 4 columns
             impossible.append([0, 0, 0, 0])
 
         self._impossible = np.array(impossible, dtype=int)
@@ -1065,7 +1086,8 @@ class InSilicoVA:
     def _prior_truncated_beta(self):
         self._prior_b_cond = float(np.floor(1.5 * self.data.shape[0]))
         if self.keep_probbase_level:
-            level_count = np.unique(self._cond_prob_true, return_counts=True)[1]
+            level_count = np.unique(self._cond_prob_true, return_counts=True)[
+                1]
             level_count_med = np.median(level_count)
             self._prior_b_cond = float(np.floor(
                 self._prior_b_cond * level_count_med * self.levels_strength))
@@ -1091,31 +1113,32 @@ class InSilicoVA:
     def _initialize_indicator_matrix(self):
 
         n, s = self.data.shape
-        self._indic = np.zeros((n, s-1))
+        self._indic = np.zeros((n, s - 1))
         self._id = self.data.iloc[:, 0].copy()
         if self.is_numeric:
             self._indic = self.data.iloc[:, 1].to_numpy(copy=True)
             self._contains_missing = self.data.isin(["-1"]).any()
         else:
-            for i in range(s-1):
-                temp_ind = np.array(self.data.iloc[:, i+1] == "Y", dtype=bool)
+            for i in range(s - 1):
+                temp_ind = np.array(self.data.iloc[:, i + 1] == "Y",
+                                    dtype=bool)
                 self._indic[temp_ind, i] = 1
             self._contains_missing = self.data.isin(["."]).any(axis=None)
             if self._contains_missing:
-                for i in range(s-1):
-                    temp_ind = np.array(self.data.iloc[:, i+1] == ".",
+                for i in range(s - 1):
+                    temp_ind = np.array(self.data.iloc[:, i + 1] == ".",
                                         dtype=bool)
                     self._indic[temp_ind, i] = -1
         if self.subpop is not None:
             for j in range(len(self._subpop_order_list)):
-                for i in range(s-1):
+                for i in range(s - 1):
                     temp = self._indic[self._subpop_numeric == j, i].copy()
                     if np.all(temp == -1):
                         self._indic[self._subpop_numeric == j, i] = -2
 
     def _initialize_parameters(self):
         c = self._cond_prob_true.shape[1]
-        csmf_prior = self._sys_prior/self._sys_prior.sum()
+        csmf_prior = self._sys_prior / self._sys_prior.sum()
         if self._method == "dirichlet":
             alpha = csmf_prior * c * self._alpha_scale  # not used in R code!
         elif self._method == "normal":
@@ -1167,7 +1190,7 @@ class InSilicoVA:
             prob_order_new = self._prob_order.copy()
             for i in range(len(self._dist)):
                 if not self._level_exist[i]:
-                    tmp_index = self._prob_order > (i+1)
+                    tmp_index = self._prob_order > (i + 1)
                     prob_order_new[tmp_index] = prob_order_new[tmp_index] - 1
             self._prob_order = prob_order_new
             # self._prob_order is the same as self._probbase_order
@@ -1180,7 +1203,8 @@ class InSilicoVA:
             # self._prob_order is the same as self._probbase_order
             self._N_level = self._n_level
             self._dist = self._interva_table(standard=True, min_level=0)
-        self._pool = int(not self.keep_probbase_level) + int(self._probbase_by_symp_dev)
+        self._pool = int(not self.keep_probbase_level) + int(
+            self._probbase_by_symp_dev)
         if self.subpop is None:
             self._n_sub = 1
             self._subpop_numeric = np.zeros(self.data.shape[0], dtype=int)
@@ -1270,7 +1294,7 @@ class InSilicoVA:
                 # double the length if the second time
                 self.n_sim = self.n_sim * 2
                 self.burnin = self.n_sim / 2
-                N_gibbs = int(np.trunc(N_gibbs * (2**(add-1))))
+                N_gibbs = int(np.trunc(N_gibbs * (2 ** (add - 1))))
                 burn = int(0)
                 keepProb = not self.update_cond_prob
                 warnings.warn(
@@ -1310,8 +1334,9 @@ class InSilicoVA:
                                      test="heidel", verbose=False)
         if not conv:
             warnings.warn(
-                f"Not all causes with CSMF > {self.conv_csmf} are convergent.\n"
-                "Please check using csmf_diag() for more information.\n")
+                f"Not all causes with CSMF > {self.conv_csmf} are "
+                "convergent.\nPlease check using csmf_diag() for more "
+                "information.\n")
         self._posterior_results = results
 
     def _parse_result(self, fit_results: Dict) -> Dict:
@@ -1344,7 +1369,7 @@ class InSilicoVA:
             p_hat = np.array(p_hat).reshape((n_thin, c))
             counter = counter + (c * n_thin)
         # extract individual probabilities
-        p_indiv = fit[counter:(counter + n*c)]
+        p_indiv = fit[counter:(counter + n * c)]
         p_indiv = np.array(p_indiv).reshape((n, c))
         counter = counter + (n * c)
         # extract probbase
@@ -1362,12 +1387,12 @@ class InSilicoVA:
             level_gibbs = np.array(level_gibbs).reshape((n_thin, n_level))
             counter = counter + (n_level * n_thin)
         # find last time configurations
-        mu_last = fit[counter:(counter + n_sub*c)]
+        mu_last = fit[counter:(counter + n_sub * c)]
         mu_last = np.array(mu_last).reshape((n_sub, c))
         counter = counter + (n_sub * c)
         sigma2_last = fit[counter:(counter + n_sub)]
         counter = counter + n_sub
-        theta_last = fit[counter:(counter + n_sub*c)]
+        theta_last = fit[counter:(counter + n_sub * c)]
         theta_last = np.array(theta_last).reshape((n_sub, c))
         counter = counter + (n_sub * c)
 
@@ -1405,11 +1430,14 @@ class InSilicoVA:
                     dims = (csmf_sub[j].shape[0],
                             C + n_ext_causes)
                     # csmf_sub_all.append(np.zeros(dims))
-                    # rescale the non-external CSMF once the external cause are added
+                    # rescale the non-external CSMF once the external
+                    # cause are added
                     rescale = sum(self._sublist[val]) / (
-                        sum(self._sublist[val]) + sum(self._ext_sub == val))
+                            sum(self._sublist[val]) + sum(
+                        self._ext_sub == val))
                     temp = csmf_sub[j] * rescale
-                    # combine the rescaled non-external CSMF with the external CSMF
+                    # combine the rescaled non-external CSMF with the
+                    # external CSMF
                     n_ext = len(self._ext_csmf[j]) * temp.shape[0]
                     ext_temp = np.resize(self._ext_csmf[j], n_ext)
                     ext_temp.resize((temp.shape[0], len(self._ext_csmf[j])))
@@ -1422,7 +1450,7 @@ class InSilicoVA:
                 csmf_sub = csmf_sub_all
             # if no subgroup
             else:
-                p_hat = p_hat * N/(N + n_ext_id)
+                p_hat = p_hat * N / (N + n_ext_id)
                 temp = p_hat[:, ext1:(C + 1)].copy()
                 n_ext = p_hat.shape[0] * n_ext_causes
                 extra = np.resize(self._ext_csmf, n_ext)
@@ -1445,7 +1473,8 @@ class InSilicoVA:
                         p_indiv_ext[i, self._ext_cod[i]] = 1
                 # WHO 2016
                 else:
-                    p_indiv_ext[:, self._external_causes] = self._ext_prob.copy()
+                    p_indiv_ext[:,
+                    self._external_causes] = self._ext_prob.copy()
             p_indiv = np.concatenate((p_indiv, p_indiv_ext), axis=0)
             np.nan_to_num(p_indiv)
             self._id = pd.concat((self._id, self._ext_id))
@@ -1539,5 +1568,16 @@ class InSilicoVA:
                                 warnings=self._warning,
                                 data_type=self.data_type)
 
-    def get_results(self):
-        return self.results
+    def get_results(self) -> InSilico:
+        if hasattr(self, "results"):
+            return self.results
+        else:
+            raise InSilicoVAException("No results available.")
+
+    def get_errors(self, print_errors: bool = True) -> Union[None, list]:
+        error_list = [str(k) + " - " + i for k, v in
+                      self._error_log.items() for i in v]
+        if print_errors:
+            print(error_list)
+        else:
+            return error_list

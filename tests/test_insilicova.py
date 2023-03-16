@@ -203,6 +203,7 @@ def test_prep_data_error_2016():
     with pytest.raises(DataException):
         out = InSilicoVA(tmp_data, data_type="WHO2016")
 
+
 def test_prep_data_no_valid_records():
     tmp_data = va_data.copy()
     tmp_data.iloc[:, 1:] = "."

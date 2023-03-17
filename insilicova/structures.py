@@ -353,5 +353,9 @@ class InSilicoAllExt:
     """Class for holding results where all causes are external."""
     id: pd.Series
     causes: pd.DataFrame
-    # data_final: pd.DataFrame
-    # data_checked: pd.DataFrame
+
+    def __str__(self):
+        msg = ("All deaths are assigned external causes.\n"
+               "Only external causes returned and IDs are returned "
+               "(not an InSilico object)\n")
+        return msg

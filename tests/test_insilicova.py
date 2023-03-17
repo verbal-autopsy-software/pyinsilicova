@@ -9,6 +9,7 @@ from typing import Dict
 from insilicova.api import InSilicoVA
 from insilicova.exceptions import ArgumentException, DataException
 from insilicova.utils import get_vadata
+from insilicova.structures import InSilico, InSilicoAllExt
 
 va_data = get_vadata("randomva5", verbose=False)
 
@@ -921,3 +922,17 @@ def test_sampler():
         tmp_out._sample_posterior()
 
     assert isinstance(tmp_out._posterior_results, Dict)
+
+
+def test_results():
+    assert isinstance(default.results, InSilico)
+
+
+def test_all_external():
+    # external causes in external dat set
+    # 34, 52, 68, 83, 96, 124, 132, 151, 159, 161, 180, 192 (minus 1)
+    ext_deaths = [33, 51, 67, 82, 95, 123, 131, 150, 158, 160, 179, 191]
+    tmp_data = va_data.iloc[ext_deaths, :].copy()
+    with pytest.warns(UserWarning):
+        out = InSilicoVA(tmp_data)
+    assert isinstance(out.results, InSilicoAllExt)

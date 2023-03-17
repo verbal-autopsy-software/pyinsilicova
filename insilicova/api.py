@@ -219,15 +219,18 @@ class InSilicoVA:
             self._run()
 
     def __str__(self):
-        # TODO: update to handle case where all causes are external
         if hasattr(self, "results"):
-            n_iter = (self.n_sim - self.burnin) / self.thin
-            msg = ("InSilicoVA:\n"
-                   f"{self.results.data_final.shape[0]} deaths processed\n"
-                   f"{self.n_sim} iterations performed, with the first "
-                   f"{self.burnin} iterations discarded\n"
-                   f"{int(n_iter)} iterations saved after thinning\n")
-            return msg
+            if isinstance(self.results, InSilico):
+                n_iter = (self.n_sim - self.burnin) / self.thin
+                msg = ("InSilicoVA:\n"
+                       f"{self.results.data_final.shape[0]} deaths processed\n"
+                       f"{self.n_sim} iterations performed, with the first "
+                       f"{self.burnin} iterations discarded\n"
+                       f"{int(n_iter)} iterations saved after thinning\n")
+            else:
+                msg = ("All deaths are assigned external causes.\n"
+                       "Only external causes returned and IDs are returned "
+                       "(not an InSilico object)\n")
         else:
             n_iter = (self.n_sim - self.burnin) / self.thin
             msg = f"""
@@ -237,7 +240,7 @@ class InSilicoVA:
             iterations will be discarded {int(n_iter)} iterations will saved 
             after thinning (no results yet, need to use run() method)
             """
-            return msg
+        return msg
 
     def _run(self):
         if self.openva_app:

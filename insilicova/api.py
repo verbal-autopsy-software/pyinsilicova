@@ -74,7 +74,9 @@ class InSilicoVA:
                  groupcode: bool = False,
                  run: bool = True,
                  openva_app: Union[None,
-                                   PyQt5.QtWidgets.QtWidget] = None) -> None:
+                                   PyQt5.QtCore.pyqtSignal] = None,
+                 state: Union[None,
+                              PyQt5.QtCore.pyqtSignal] = None) -> None:
 
         # instance attributes from arguments
         self.data = data.copy()
@@ -115,6 +117,7 @@ class InSilicoVA:
         self.groupcode = groupcode
         self.run = run
         self.openva_app = openva_app
+        self.state = state
 
         # retain copies of original input -- IS THIS NEEDED?
         self.original_data: pd.DataFrame = data.copy()
@@ -243,12 +246,8 @@ class InSilicoVA:
         return msg
 
     def _run(self):
-        if self.openva_app:
-            from PyQt5.QtWidgets import QApplication
-            self.openva_app.label_insilicova_progress.setText(
-                "preparing data..."
-            )
-            QApplication.processEvents()
+        if self.state:
+            self.state.emit("preparing data...")
         self._change_data_coding()
         self._check_args()
         self._initialize_data_dependencies()
@@ -287,11 +286,12 @@ class InSilicoVA:
                 self._get_subpop_info()
             self._initialize_indicator_matrix()
             self._initialize_parameters()
-            if self.openva_app:
+            if self.state:
                 msg = "Running InSilicoVA..."
                 if self.auto_length:
-                    msg += "\n(progress bar may reset once or twice since auto increase is True)"
-                self.openva_app.label_insilicova_progress.setText(msg)
+                    msg += ("\n(progress bar may reset once or twice since "
+                            "auto increase is True")
+                    self.state.emit(msg)
             self._sample_posterior()
             self._prepare_results()
 
@@ -1277,6 +1277,7 @@ class InSilicoVA:
                           broader=broader, assignment=assignment,
                           impossible=impossible,
                           openva_app=self.openva_app)
+                          
         fit_results = {"N_sub": N_sub, "C": C, "S": S, "N_level": N_level,
                        "pool": pool, "fit": fit}
         results = self._parse_result(fit_results)

@@ -597,7 +597,8 @@ class Sampler:
     #         Note: should start from 0. All 0 if no sub-population exist.
     # contains_missing: if there are missing
     # pool: if estimating the probbase table only
-    #       update Sep 30, 2015: pool = 0, only table; pool = 1, by cause; pool = 2, compare only within each symptom
+    #       update Sep 30, 2015: pool = 0, only table; pool = 1, by cause;
+    #       pool = 2, compare only within each symptom
     # seed, N_gibbs, thin: integers
     # mu: vector initialized in R
     # sigma2: value initialized in R
@@ -618,8 +619,6 @@ class Sampler:
         C = dimensions[2]  # int
         N_sub = dimensions[3]  # int
         N_level = dimensions[4]  # int
-        if openva_app:
-            from PyQt5.QtWidgets import QApplication
 
         withPhy = C_phy > 1
 
@@ -826,8 +825,7 @@ class Sampler:
 
             if openva_app:
                 progress = int(100*k / N_gibbs + 1)
-                openva_app.insilicova_pbar.setValue(progress)
-                QApplication.processEvents()
+                openva_app.emit(progress)
 
             # note this condition includes the first iteration
             if k >= burn and (k - burn + 1) % thin == 0:

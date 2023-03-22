@@ -26,3 +26,8 @@ class DataException(InSilicoVAException):
 class SamplerException(InSilicoVAException):
     """Exception involving InSilicoVA sampler."""
     pass
+
+
+class HaltGUIException(InSilicoVAException):
+    """GUI signaled InSilicoVA to stop."""
+    pass

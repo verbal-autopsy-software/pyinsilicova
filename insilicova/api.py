@@ -8,7 +8,8 @@ This module contains the class for the InSilicoVA algorithm.
 """
 
 from __future__ import annotations
-from .exceptions import ArgumentException, DataException, InSilicoVAException
+from .exceptions import (ArgumentException, DataException, HaltGUIException,
+                         InSilicoVAException)
 from .utils import get_vadata
 from .sampler import Sampler
 from .diag import csmf_diag
@@ -76,7 +77,8 @@ class InSilicoVA:
                  openva_app: Union[None,
                                    PyQt5.QtCore.pyqtSignal] = None,
                  state: Union[None,
-                              PyQt5.QtCore.pyqtSignal] = None) -> None:
+                              PyQt5.QtCore.pyqtSignal] = None,
+                 gui_ctrl: dict = {"break": False}) -> None:
 
         # instance attributes from arguments
         self.data = data.copy()
@@ -118,6 +120,7 @@ class InSilicoVA:
         self.run = run
         self.openva_app = openva_app
         self.state = state
+        self.gui_ctrl = gui_ctrl
 
         # retain copies of original input -- IS THIS NEEDED?
         self.original_data: pd.DataFrame = data.copy()
@@ -239,8 +242,8 @@ class InSilicoVA:
             msg = f"""
             InSilicoVA:
             {self.data.shape[0]} deaths loaded
-            {self.n_sim} iterations requested (the first {self.burnin} 
-            iterations will be discarded {int(n_iter)} iterations will saved 
+            {self.n_sim} iterations requested (the first {self.burnin}
+            iterations will be discarded {int(n_iter)} iterations will saved
             after thinning (no results yet, need to use run() method)
             """
         return msg
@@ -291,7 +294,7 @@ class InSilicoVA:
                 if self.auto_length:
                     msg += ("\n(progress bar may reset once or twice since "
                             "auto increase is True")
-                    self.state.emit(msg)
+                self.state.emit(msg)
             self._sample_posterior()
             self._prepare_results()
 
@@ -410,7 +413,7 @@ class InSilicoVA:
         self._sys_prior = self._change_inter(
             self._probbase[0, pbcols], order=False, standard=True)
         self._prob_orig = self._probbase[1:, pbcols].copy()
-        self._prob_orig_colnames = self._probbase_colnames[pbcols,].copy()
+        self._prob_orig_colnames = self._probbase_colnames[pbcols, ].copy()
         self._negate = np.array([False] * self._prob_orig.shape[0])
         if self.data_type == "WHO2016":
             subst_vector = self._probbase[1:, 5]
@@ -772,6 +775,8 @@ class InSilicoVA:
             self._warning["second_pass"].extend(
                 checked_results["second_pass"])
             checked_list.append(checked_results["output"])
+            if self.gui_ctrl["break"]:
+                raise HaltGUIException
         checked = pd.DataFrame(checked_list)
         if sum(self._negate) > 0:
             shifted_index = np.where(self._negate)[0] + 1
@@ -1234,7 +1239,8 @@ class InSilicoVA:
         sampler = Sampler(N=N, S=S, C=C, N_sub=N_sub, N_level=N_level,
                           subpop=subpop, probbase=probbase,
                           probbase_order=probbase_order,
-                          level_values=level_values, pool=pool)
+                          level_values=level_values, pool=pool,
+                          gui_ctrl=self.gui_ctrl)
         dimensions = [N, S, C, N_sub, N_level]
         prior_a = self.levels_prior.copy()
         prior_b = self._prior_b_cond
@@ -1277,7 +1283,7 @@ class InSilicoVA:
                           broader=broader, assignment=assignment,
                           impossible=impossible,
                           openva_app=self.openva_app)
-                          
+
         fit_results = {"N_sub": N_sub, "C": C, "S": S, "N_level": N_level,
                        "pool": pool, "fit": fit}
         results = self._parse_result(fit_results)

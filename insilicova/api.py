@@ -293,7 +293,7 @@ class InSilicoVA:
                 msg = "Running InSilicoVA..."
                 if self.auto_length:
                     msg += ("\n(progress bar may reset once or twice since "
-                            "auto increase is True")
+                            "auto increase is True)")
                 self.state.emit(msg)
             self._sample_posterior()
             self._prepare_results()

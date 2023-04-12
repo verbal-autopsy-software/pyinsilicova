@@ -14,6 +14,7 @@ from insilicova.utils import get_vadata
 va_data = get_vadata("randomva5", verbose=False)
 
 default = InSilicoVA(va_data, subpop=["i019a"], n_sim=200, thin=1, burnin=100,
+# default = InSilicoVA(va_data, n_sim=200, thin=1, burnin=100,
                      auto_length=False)
 insilico_obj = default.get_results()
 

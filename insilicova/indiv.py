@@ -18,6 +18,7 @@ from pandas import DataFrame, concat
 from numpy import apply_along_axis, array, delete, nan, ones, zeros
 from typing import Dict, Union
 
+
 def get_indiv(insilico_obj: InSilico,
               data: Union[None, DataFrame],
               ci: float = 0.95,
@@ -108,7 +109,7 @@ def get_indiv(insilico_obj: InSilico,
     if insilico_obj.subpop is None:
         csmf = zeros((1, ) + insilico_obj.csmf.shape)
         csmf[0] = insilico_obj.csmf.copy()
-        subpop = ones(len(insilico_obj.id))
+        subpop = zeros(len(insilico_obj.id), dtype=int)
     else:
         n_sub = len(insilico_obj.csmf)
         dims = (n_sub, ) + insilico_obj.csmf[0].shape

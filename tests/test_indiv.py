@@ -24,6 +24,7 @@ def test_get_indiv_defaults():
                     by=["i019a"])
     assert False
 
+
 def test_get_indiv_is_sample():
     out = get_indiv(insilico_obj=insilico_obj,
                     data=va_data,
@@ -32,6 +33,7 @@ def test_get_indiv_is_sample():
                     by=["i019a"],
                     is_sample=True)
     assert False
+
 
 def test_get_indiv_is_aggregate():
     out = get_indiv(insilico_obj=insilico_obj,
@@ -42,6 +44,7 @@ def test_get_indiv_is_aggregate():
                     is_sample=False)
     assert False
 
+
 def test_get_indiv_is_aggregate_no_by():
     out = get_indiv(insilico_obj=insilico_obj,
                     data=va_data,
@@ -50,6 +53,7 @@ def test_get_indiv_is_aggregate_no_by():
                     by=None,
                     is_sample=False)
     assert False
+
 
 def test_update_indiv():
     assert insilico_obj.indiv_prob_median is None

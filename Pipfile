@@ -14,6 +14,7 @@ tqdm = "*"
 
 [dev-packages]
 pytest = {version="*"}
+rpy2 = "*"
 
 [requires]
 python_version = "3.10"

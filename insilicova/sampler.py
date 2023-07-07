@@ -811,20 +811,19 @@ class Sampler:
 
             # format output message
             if k % 10 == 0:
-                print(".")
+                print(".", end="", flush=True)
             if k % n_report == 0 and k != 0:
                 # output for Unix system
                 now = time() * 1000.0
-                message = f"Iteration: {k} "
+                message = f"\nIteration: {k}"
                 for sub in range(N_sub):
                     ratio = naccept[sub] / (k + 0.0)
                     message += (
-                        f"Sub-population {sub} acceptance ratio: {ratio:.2f} ")
+                        f"\nSub-population {sub} acceptance ratio: {ratio:.2f}")
                 print(message)
-                print(
-                    (f"{(now - start) / 1000 / 60: .2f}min elapsed, "
-                     f"{(now - start) / 1000 / 60 / k * (N_gibbs - k): .2f}"
-                     "min remaining "))
+                print(f"{(now - start) / 1000 / 60: .2f}min elapsed, "
+                      f"{(now - start) / 1000 / 60 / k * (N_gibbs - k): .2f}"
+                      "min remaining")
 
                 # output for windows pop up window
                 if not this_is_Unix and openva_app is None:

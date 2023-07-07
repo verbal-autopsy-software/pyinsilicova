@@ -61,7 +61,6 @@ class InSilicoVA:
                  trunc_min: float = 0.0001,
                  trunc_max: float = 0.9999,
                  subpop: Union[None, list, str, pd.Series] = None,
-                 java_option: str = "-Xmx1g",
                  seed: int = 1,
                  phy_code: Union[None, pd.DataFrame] = None,
                  phy_cat: Union[None, pd.DataFrame] = None,
@@ -105,7 +104,6 @@ class InSilicoVA:
         self.trunc_min = trunc_min
         self.trunc_max = trunc_max
         self.subpop = subpop
-        self.java_option = java_option
         self.seed = seed
         self.phy_code = phy_code
         self.phy_cat = phy_cat

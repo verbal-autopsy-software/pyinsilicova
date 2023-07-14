@@ -97,7 +97,7 @@ class InSilico:
     data_final: pd.DataFrame
     data_checked: pd.DataFrame
     indiv_prob: np.ndarray
-    csmf: Dict
+    csmf: pd.DataFrame
     conditional_probs: np.ndarray
     probbase: np.ndarray
     probbase_colnames: np.ndarray

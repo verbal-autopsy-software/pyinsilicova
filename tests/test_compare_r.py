@@ -13,7 +13,8 @@ from rpy2.robjects import pandas2ri
 r_pack = importr("InSilicoVA")
 robjects.r('''
   data(RandomVA5)
-  r_out <- insilico(RandomVA5, data.type="WHO2016")
+  r_out <- insilico(RandomVA5, data.type="WHO2016",
+                    Nsim=4000, burnin=2000, thin=10)
   r_out_csmf <- as.data.frame(summary(r_out)$csmf.ordered)
   indiv_results <- get.indiv(r_out, RandomVA5)
   r_indiv_mean <- as.data.frame(indiv_results$mean)

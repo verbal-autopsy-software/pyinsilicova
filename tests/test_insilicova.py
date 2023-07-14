@@ -210,7 +210,8 @@ def test_prep_data_no_valid_records():
     tmp_data.iloc[:, 1:] = "."
     out = InSilicoVA(tmp_data, data_type="WHO2016", run=False)
     assert len(out._error_log) == 0
-    out._run()
+    with pytest.warns(UserWarning):
+        out._run()
     assert hasattr(out, "_data_checked") is False
     assert len(out._error_log) == tmp_data.shape[0]
 
@@ -592,8 +593,8 @@ class TestRemoveExt:
                                      n_sim=10, burnin=1,
                                      thin=1, auto_length=False)
         # add 1 for ID column
-        assert all_ext_out.results.shape == (self.all_external.shape[0],
-                                             len(self.ext_causes) + 1)
+        assert all_ext_out.results.causes.shape == (self.all_external.shape[0],
+                                                    len(self.ext_causes) + 1)
 
 
 class TestCheckMissingAll:

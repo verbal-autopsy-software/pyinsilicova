@@ -8,6 +8,7 @@ This module contains functions that check if the CSMF chains have converged.
 """
 from .exceptions import SamplerException, ArgumentException
 from .structures import InSilico
+from copy import deepcopy
 from math import gamma, pi
 import numpy as np
 from typing import Union, Dict, List
@@ -17,12 +18,12 @@ from scipy.special import kv
 from pandas import DataFrame
 
 
-def csmf_diag(csmf: Union[InSilico, List],
+def csmf_diag(csmf: Union[InSilico, List, np.ndarray, DataFrame],
               conv_csmf: float = 0.02,
               test: str = "heidel",
               verbose: bool = True,
               autoburnin: bool = False,
-              which_sub: Union[None, np.ndarray] = None) -> List[DataFrame]:
+              which_sub: Union[None, int] = None) -> Union[int, List]:
     """
     Convergence test for fitted InSilicoVA model.
 
@@ -47,10 +48,10 @@ def csmf_diag(csmf: Union[InSilico, List],
     fitted "insilico" object from different chains of the same length
     but different starting values, i.e., different seed. Or it could be the
     matrix of CSMF obtained by insilico, or the list of matrices of
-    CSMF. All CSMF could contain more than one subpopulations, but should be in
+    CSMF. All CSMF could contain more than one subpopulation, but should be in
     the same format and order. And notice if the raw CSMF is used instead of
     the "insilico" object, external causes might need to be removed
-    manually by user is external.sep is TRUE when fitting the model.
+    manually by user is external_sep is True when fitting the model.
     :param conv_csmf: The minimum mean CSMF to be checked. Default to be 0.02,
     which means any causes with mean CSMF lower than 0.02 will not be tested.
     :type conv_csmf: float
@@ -69,61 +70,83 @@ def csmf_diag(csmf: Union[InSilico, List],
     multiple in the fitted object.
     :type which_sub: numpy.ndarray
     """
-    if isinstance(csmf, np.ndarray):
-        check_csmf = []
-        check_csmf.append(csmf.copy())
-    else:
-        check_csmf = csmf.copy()
     if test not in ("gelman", "heidel"):
         raise ArgumentException(
             "Test needs to be either 'gelman' or 'heidel'.")
     if test == "gelman":
         raise ArgumentException(
             "'gelman' test has not been implemented yet (use 'heidel').")
-    # check if the input is insilico object or only csmf
+
+    check_csmf = []
+    csmf_column_names = []
+    # input is a single csmf matrix
+    if isinstance(csmf, np.ndarray):
+        check_csmf.append(csmf.copy())
+    if isinstance(csmf, DataFrame):
+        tmp_csmf = csmf.to_numpy().copy()
+        check_csmf.append(tmp_csmf)
+    # input is list of csmf matrices
+    if isinstance(csmf, list):
+        if isinstance(csmf[0], np.ndarray):
+            check_csmf = deepcopy(csmf)
+    # input is a single InSilico instance (w/ & w/o subpops)
     if isinstance(csmf, InSilico):
-        if csmf.external:
-            if isinstance(csmf.csmf, list):
-                for i in range(len(csmf.csmf)):
+        # with subpops
+        if isinstance(csmf.csmf, list):
+            for i in range(len(csmf.csmf)):
+                tmp_names = csmf.csmf[i].columns.copy()
+                tmp_names = tmp_names.to_numpy()
+                if csmf.external:
                     tmp_csmf = np.delete(csmf.csmf[i],
                                          csmf.external_causes, axis=1)
-                    check_csmf.append(tmp_csmf)
-            else:  # no subgroups
+                    tmp_names = np.delete(tmp_names, csmf.external_causes)
+                else:
+                    tmp_csmf = csmf.csmf[i].copy()
+                check_csmf.append(tmp_csmf)
+                csmf_column_names.append(tmp_names)
+        # without subpops
+        else:
+            tmp_names = csmf.csmf.columns.copy()
+            tmp_names = tmp_names.to_numpy()
+            if csmf.external:
                 tmp_csmf = np.delete(csmf.csmf,
                                      csmf.external_causes, axis=1)
-                check_csmf.append(tmp_csmf)
-        else:
-            check_csmf.append(csmf.csmf)
-    # check if input is multiple insilico objects without subpopulation
-    if (isinstance(csmf, list) and
-            isinstance(csmf[0], InSilico) and
-            not isinstance(csmf[0].csmf, list)):
-        csmf_only = []
-        for i in range(len(csmf)):
-            if csmf[i].external:
-                tmp_csmf = np.delete(csmf[i].csmf,
-                                     csmf[i].external_causes, axis=1)
-                csmf_only.append(tmp_csmf)
+                tmp_names = np.delete(tmp_names, csmf.external_causes)
             else:
-                csmf_only.append(csmf[i].csmf)
-        check_csmf = csmf_only
-    # check if input is multiple insilico objects with subpopulation
-    if (isinstance(csmf, list) and
-            isinstance(csmf[0], InSilico) and
-            isinstance(csmf[0].csmf, list)):
-        csmf_only = []
-        if which_sub is None:
-            raise ArgumentException(
-                "Need to specify which sub-population to test.")
-        for i in range(len(csmf)):
-            if csmf[i].external:
-                tmp_csmf = np.delete(csmf[i].csmf[which_sub],
-                                     csmf[i].external_causes, axis=1)
-                csmf_only.append(tmp_csmf)
+                tmp_csmf = csmf.csmf.copy()
+            check_csmf.append(tmp_csmf)
+            csmf_column_names.append(tmp_names)
+    # input is list of InSilico instances (w/ & w/o subpops)
+    if isinstance(csmf, list):
+        if isinstance(csmf[0], InSilico):
+            # w/ subpops
+            if isinstance(csmf[0].csmf, list):
+                for i in range(len(csmf)):
+                    tmp_names = csmf[i].csmf[which_sub].columns.copy()
+                    tmp_names = tmp_names.to_numpy()
+                    if csmf[i].external:
+                        tmp_csmf = np.delete(csmf[i].csmf[which_sub],
+                                             csmf[i].external_causes, axis=1)
+                        tmp_names = np.delete(tmp_names,
+                                              csmf[i].external_causes)
+                    else:
+                        tmp_csmf = csmf[i].csmf[which_sub].copy()
+                    check_csmf.append(tmp_csmf)
+                    csmf_column_names.append(tmp_names)
+            # w/o subpops
             else:
-                csmf_only.append(csmf[i].csmf[which_sub])
-        check_csmf = csmf_only
-
+                for i in range(len(csmf)):
+                    tmp_names = csmf[i].csmf.columns.copy()
+                    tmp_names = tmp_names.to_numpy()
+                    if csmf[i].external:
+                        tmp_csmf = np.delete(csmf[i].csmf,
+                                             csmf[i].external_causes, axis=1)
+                        tmp_names = np.delete(tmp_names,
+                                              csmf[i].external_causes)
+                    else:
+                        tmp_csmf = csmf[i].csmf.copy()
+                    check_csmf.append(tmp_csmf)
+                    csmf_column_names.append(tmp_names)
     # check conv_csmf value
     if conv_csmf >= 1 or conv_csmf <= 0:
         raise ArgumentException(
@@ -136,10 +159,23 @@ def csmf_diag(csmf: Union[InSilico, List],
         testout = []
         conv = 1
         for i in range(len(check_csmf)):
-            out = _heidel_single(check_csmf[i], conv_csmf)
-            testout.append(out)
+            cod_names = None
+            if len(csmf_column_names) > 0:
+                cod_names = csmf_column_names[i]
+            out, out_names = _heidel_single(check_csmf[i],
+                                            conv_csmf,
+                                            cod_names)
             # conv = conv * testout["stest"].prod() * testout["htest"].prod()
             conv = conv * out[:, 0].prod() * out[:, 3].prod()
+            df_out = DataFrame(out, index=out_names,
+                               columns=["Stationarity test", "start iteration",
+                                        "p-value", "Halfwidth test", "Mean",
+                                        "Halfwidth"])
+            df_out["Stationarity test"].replace(
+                {1.0: "passed", 0.0: "failed"}, inplace=True)
+            df_out["Halfwidth test"].replace(
+                {1.0: "passed", 0.0: "failed"}, inplace=True)
+            testout.append(df_out)
     # Gelman test
     if test == "gelman":
         raise ArgumentException(
@@ -153,16 +189,22 @@ def csmf_diag(csmf: Union[InSilico, List],
 
 
 def _heidel_single(one: np.ndarray,
-                   conv_csmf: float) -> DataFrame:
+                   conv_csmf: float,
+                   cod_names: Union[None, np.ndarray]) -> tuple:
     # sort chain by CSMF mean values
     mean = one.mean(axis=0)
     ordered_one = one[:, mean.argsort()[::-1]].copy()
+    ordered_names = None
+    if cod_names is not None:
+        ordered_names = cod_names[mean.argsort()[::-1]]
     mean = ordered_one.mean(axis=0)
     ordered_one = ordered_one[:, mean > conv_csmf]
+    if cod_names is not None:
+        ordered_names = ordered_names[mean > conv_csmf]
     test = _heidel_diag(ordered_one)
     # TODO: this needs to be updated for dealing with DataFrame
     #       see below (_heidel_diag)
-    return test
+    return test, ordered_names
 
 
 def _gelman_single(input_list, conv_csmf):
@@ -177,7 +219,7 @@ def _gelman_diag(x: np.ndarray,
 
 def _heidel_diag(x: np.ndarray,
                  eps: float = 0.1,
-                 pvalue: float = 0.05) -> DataFrame:
+                 pvalue: float = 0.05) -> np.ndarray:
     """
     Ported from R package coda::heidel.diag
     https://CRAN.R-project.org/package=coda
@@ -241,7 +283,6 @@ def _heidel_diag(x: np.ndarray,
         HW_mat[j, :] = [converged, nstart, 1 - _pcramer(I),
                         passed_hw, ybar, halfwidth]
 
-    # note: access column names with: HW_mat.dtypes.names
     # TODO: this needs to return a DataFrame with cause names for each row
     return HW_mat
 

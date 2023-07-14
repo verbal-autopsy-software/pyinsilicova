@@ -13,7 +13,6 @@ from scipy.stats import beta
 # from random import Random
 from math import exp, log
 from time import time
-from tqdm import tqdm
 
 from .exceptions import HaltGUIException
 
@@ -743,15 +742,9 @@ class Sampler:
 
         # start loop
         start = time() * 1000
-        # popup window under non-unix system
-        if openva_app is None:
-            popup = tqdm(total=N_gibbs)
         for k in range(N_gibbs):
             if self.gui_ctrl["break"]:
                 raise HaltGUIException
-            if not this_is_Unix and openva_app is None:
-                popup.update(1)
-                popup.refresh()
             # sample new y vector
             y_new = insilico.sampleY(pnb, rngU)
             if withPhy:
@@ -824,11 +817,6 @@ class Sampler:
                 print(f"{(now - start) / 1000 / 60: .2f}min elapsed, "
                       f"{(now - start) / 1000 / 60 / k * (N_gibbs - k): .2f}"
                       "min remaining")
-
-                # output for windows pop up window
-                if not this_is_Unix and openva_app is None:
-                    popup.set_description(f"{k} {message}")
-
             if openva_app:
                 progress = int(100*k / N_gibbs + 1)
                 openva_app.emit(progress)

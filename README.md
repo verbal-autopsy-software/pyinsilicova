@@ -30,6 +30,6 @@ from insilicova.utils import get_vadata
 
 va_data = get_vadata("randomva5")
 
-out = InSilicoVA(data=va_data, data_type="WHO2016", datacheck=False,
-                 n_sim=10, burnin=1, thin=1, auto_length=False)
+out = InSilicoVA(data=va_data, data_type="WHO2016", 
+                 n_sim=50, burnin=10, thin=2, auto_length=False)
 ```

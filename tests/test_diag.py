@@ -58,9 +58,8 @@ def test_csmf_list():
 
 def test_insilico_no_subpop():
     out_diag = csmf_diag(results1)
-    assert len(out_diag) == 1
-    assert isinstance(out_diag[0], pd.DataFrame)
-    assert out_diag[0].shape[1] == 6
+    assert isinstance(out_diag, pd.DataFrame)
+    assert out_diag.shape[1] == 6
 
 
 def test_insilico_with_subpop():

@@ -96,24 +96,24 @@ def csmf_diag(csmf: Union[InSilico, List, np.ndarray, DataFrame],
             for i in range(len(csmf.csmf)):
                 tmp_names = csmf.csmf[i].columns.copy()
                 tmp_names = tmp_names.to_numpy()
+                tmp_csmf = csmf.csmf[i].copy()
+                tmp_csmf = tmp_csmf.to_numpy()
                 if csmf.external:
-                    tmp_csmf = np.delete(csmf.csmf[i],
+                    tmp_csmf = np.delete(tmp_csmf,
                                          csmf.external_causes, axis=1)
                     tmp_names = np.delete(tmp_names, csmf.external_causes)
-                else:
-                    tmp_csmf = csmf.csmf[i].copy()
                 check_csmf.append(tmp_csmf)
                 csmf_column_names.append(tmp_names)
         # without subpops
         else:
             tmp_names = csmf.csmf.columns.copy()
             tmp_names = tmp_names.to_numpy()
+            tmp_csmf = csmf.csmf.copy()
+            tmp_csmf = tmp_csmf.to_numpy()
             if csmf.external:
-                tmp_csmf = np.delete(csmf.csmf,
+                tmp_csmf = np.delete(tmp_csmf,
                                      csmf.external_causes, axis=1)
                 tmp_names = np.delete(tmp_names, csmf.external_causes)
-            else:
-                tmp_csmf = csmf.csmf.copy()
             check_csmf.append(tmp_csmf)
             csmf_column_names.append(tmp_names)
     # input is list of InSilico instances (w/ & w/o subpops)
@@ -124,13 +124,13 @@ def csmf_diag(csmf: Union[InSilico, List, np.ndarray, DataFrame],
                 for i in range(len(csmf)):
                     tmp_names = csmf[i].csmf[which_sub].columns.copy()
                     tmp_names = tmp_names.to_numpy()
+                    tmp_csmf = csmf[i].csmf[which_sub].copy()
+                    tmp_csmf = tmp_csmf.to_numpy()
                     if csmf[i].external:
-                        tmp_csmf = np.delete(csmf[i].csmf[which_sub],
+                        tmp_csmf = np.delete(tmp_csmf,
                                              csmf[i].external_causes, axis=1)
                         tmp_names = np.delete(tmp_names,
                                               csmf[i].external_causes)
-                    else:
-                        tmp_csmf = csmf[i].csmf[which_sub].copy()
                     check_csmf.append(tmp_csmf)
                     csmf_column_names.append(tmp_names)
             # w/o subpops
@@ -138,13 +138,13 @@ def csmf_diag(csmf: Union[InSilico, List, np.ndarray, DataFrame],
                 for i in range(len(csmf)):
                     tmp_names = csmf[i].csmf.columns.copy()
                     tmp_names = tmp_names.to_numpy()
+                    tmp_csmf = csmf[i].csmf.copy()
+                    tmp_csmf = tmp_csmf.to_numpy()
                     if csmf[i].external:
-                        tmp_csmf = np.delete(csmf[i].csmf,
+                        tmp_csmf = np.delete(tmp_csmf,
                                              csmf[i].external_causes, axis=1)
                         tmp_names = np.delete(tmp_names,
                                               csmf[i].external_causes)
-                    else:
-                        tmp_csmf = csmf[i].csmf.copy()
                     check_csmf.append(tmp_csmf)
                     csmf_column_names.append(tmp_names)
     # check conv_csmf value
@@ -185,7 +185,10 @@ def csmf_diag(csmf: Union[InSilico, List, np.ndarray, DataFrame],
     if not verbose and test == "heidel":
         return conv
     else:
-        return testout
+        if len(testout) == 1:
+            return testout[0]
+        else:
+            return testout
 
 
 def _heidel_single(one: np.ndarray,

@@ -120,7 +120,7 @@ class InSilicoVA:
         self.state = state
         self.gui_ctrl = gui_ctrl
 
-        # retain copies of original input -- IS THIS NEEDED?
+        # retain copies of original input
         self.original_data: pd.DataFrame = data.copy()
         if isinstance(subpop, str):
             self.original_subpop = subpop
@@ -227,7 +227,7 @@ class InSilicoVA:
             if isinstance(self.results, InSilico):
                 n_iter = (self.n_sim - self.burnin) / self.thin
                 msg = ("InSilicoVA:\n"
-                       f"{self.results.data_final.shape[0]} deaths processed\n"
+                       f"{len(self.results.id)} deaths processed\n"
                        f"{self.n_sim} iterations performed, with the first "
                        f"{self.burnin} iterations discarded\n"
                        f"{int(n_iter)} iterations saved after thinning\n")

@@ -1041,8 +1041,8 @@ class InSilicoVA:
                     if "i367a" in data_colnames:
                         ss = data_colnames.index("i367a")
                         # if negated, then reverse
-                        val_only_prem = int(self._negate[ss] is True)
-                        val_not_prem = int(self._negate[ss] is False)
+                        val_only_prem = int(self._negate[ss] is np.True_)
+                        val_not_prem = int(self._negate[ss] is np.False_)
                 cc_only_prem = self._va_causes_current == "Prematurity"
                 if ss is not None and sum(cc_only_prem) == 1:
                     cc_only_index = self._va_causes_current[

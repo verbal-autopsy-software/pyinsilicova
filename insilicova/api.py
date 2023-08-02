@@ -968,8 +968,10 @@ class InSilicoVA:
         if n_symp_ok is False:
             raise DataException("Number of symptoms is not right. \n")
         if self.external_sep:
-            self._va_causes_current = self._va_causes[
-                self._external_causes].copy()
+            # self._va_causes_current = self._va_causes[
+            #     self._external_causes].copy()
+            self._va_causes_current = self._va_causes.drop(
+                self._external_causes)
         else:
             self._va_causes_current = self._va_causes.copy()
 

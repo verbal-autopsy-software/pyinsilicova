@@ -602,7 +602,7 @@ void Sampler::trunc_beta(py::array_t<double> prior_a, double prior_b,
 void Sampler::trunc_beta_pool(py::array_t<double> prior_a, double prior_b,
 			      double trunc_min, double trunc_max) {
 
-    typedef std::map< int, std::vector<int> > inner_map;
+//    typedef std::map< int, std::vector<int> > inner_map;
 
     auto proxy_pbase = probbase.mutable_unchecked<2>();
     auto proxy_pbase_order = probbase_order.mutable_unchecked<2>();
@@ -1096,10 +1096,4 @@ PYBIND11_MODULE(_sampler, m) {
 	     py::array_t<int> & >())
 	.def("fit", &Sampler::fit)
         .def("get_pblevel", &Sampler::get_pblevel);
-
-//#ifdef VERSION_INFO
-//    m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
-//#else
-//    m.attr("__version__") = "dev";
-//#endif
 }

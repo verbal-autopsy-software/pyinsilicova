@@ -5,6 +5,12 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
+[external]
+build-requires = [
+    "virtual:compiler/cpp",
+    "pkg:generic/boost",
+]
+
 [project]
 name = "insilicova"
 version = "0.0.3"

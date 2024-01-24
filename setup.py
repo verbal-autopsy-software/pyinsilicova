@@ -3,7 +3,7 @@ from pybind11.setup_helpers import Pybind11Extension, build_ext
 
 ext_modules = [
     Pybind11Extension(
-        "insilicova._sampler",
+        "insilicova._sampler._sampler",
         ["insilicova/_sampler/sampler.cpp"],
     ),
 ]

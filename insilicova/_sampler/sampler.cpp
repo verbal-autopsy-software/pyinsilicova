@@ -719,7 +719,7 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
     size_t size_c = buf_mu_cont.shape[1];
 
     py::print("InSilicoVA Sampler Initiated, ", N_gibbs, " Iterations to Sample\n");
-    int N_thin = (int) ((N_gibbs - burn) / thin);
+    int N_thin = (int) ((N_gibbs - burn) / (thin));
     int n_report = std::max(N_gibbs/20, 100);
     if (N_gibbs < 200) n_report = 50;
 
@@ -945,7 +945,7 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
         if (k % 10 == 0) {
             py::print(".", "end"_a="", "flush"_a=true);
         }
-        if (k % n_report == 0 & k != 0) {
+        if ( (k % n_report == 0) & (k != 0) ) {
             std::string message = "\nIteration: " + std::to_string(k) + " \n";
             for (int sub = 0; sub < N_sub; ++sub) {
                 double ratio = std::ceil(100.0 * n_accept[sub] / (k + 0.0)) / 100.0;
@@ -965,7 +965,7 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
         }
 
 	// note this condition includes the first iteration
-	if (k >= burn & (k - burn + 1) % thin == 0) {
+	if ( (k >= burn) & ((k - burn + 1) % thin == 0) ) {
 	    int save = ((int) ((k - burn + 1)/thin)) - 1;
 	    for (int d1 = 0; d1 < N; ++d1) {
 		for (int d2 = 0; d2 < C; ++d2) {
@@ -1044,8 +1044,10 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
 	}
     } else {
 	for (int k = 0; k < N_thin; ++k) {
-	    for (int l = 1; l <= N_level; ++l) {
-		parameters(counter) = levels_gibbs(k, l-1);
+	    // for (int l = 1; l <= N_level; ++l) {
+		// parameters(counter) = levels_gibbs(k, l-1);
+	    for (int l = 0; l < N_level; ++l) {
+		parameters(counter) = levels_gibbs(k, l);
 		counter += 1;
 	    }
 	}

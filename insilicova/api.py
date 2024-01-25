@@ -303,7 +303,8 @@ class InSilicoVA:
                 self.data[i] = self.data[i].astype("string")
                 if self.subpop is not None and i in self.subpop:
                     continue
-                self.data[i].fillna(".", inplace=True)
+                # self.data[i].fillna(".", inplace=True)
+                self.data[i] = self.data[i].fillna(".")
                 if "" in self.data[i].values:
                     raise DataException(
                         "Wrong format: WHO 2016 input uses 'N' to denote "
@@ -1291,6 +1292,10 @@ class InSilicoVA:
         y_new = np.empty(N)
         y = np.zeros((N_sub, C))
         N_out = 1 + N_sub * C * N_thin + N * C + N_sub * (C * 2 + 1)
+        if pool == 0:
+            N_out += N_level * N_thin
+        else:
+            N_out += S * C * N_thin
         parameters = np.empty(N_out)
         sampler.fit(prior_a, prior_b, jumprange, trunc_min, trunc_max,
                     indic, contains_missing,
@@ -1312,7 +1317,7 @@ class InSilicoVA:
                     y_new,
                     y,
                     parameters)
-        del sampler  #  deleting to help avoid crashes (of multiple access points to same memory)
+        # del sampler  #  deleting to help avoid crashes (of multiple access points to same memory)
 
         fit_results = {"N_sub": N_sub, "C": C, "S": S, "N_level": N_level,
                        "pool": pool,
@@ -1328,6 +1333,9 @@ class InSilicoVA:
         if self.auto_length:
             add = 1
             while not conv and add < 3:
+                # CRASHING HERE (note that many object below are created above, which may be
+                # problematic -- should the sampler below be sampler2; also, crashes appear to
+                # be inconsistent from same build wrt when the crash occurs).
                 mu_continue = results["mu_last"]
                 sigma2_continue = results["sigma2_last"]
                 theta_continue = results["theta_last"]
@@ -1338,6 +1346,11 @@ class InSilicoVA:
                 N_gibbs = int(np.trunc(N_gibbs * (2 ** (add - 1))))
                 burn = int(0)
                 keepProb = not self.update_cond_prob
+                N_thin = int((N_gibbs - burn) / (thin))
+                probbase_gibbs = np.zeros((N_thin, S, C))
+                levels_gibbs = np.zeros((N_thin, N_level))
+                pnb_mean = np.zeros((N, C))
+                p_gibbs = np.zeros((N_thin, N_sub, C))
                 warnings.warn(
                     f"Not all causes with CSMF > {self.conv_csmf} are "
                     f"convergent.\n Increase chain length with another "
@@ -1369,10 +1382,15 @@ class InSilicoVA:
                                   count_m,
                                   count_m_all,
                                   count_c)
+                N_out = 1 + N_sub * C * N_thin + N * C + N_sub * (C * 2 + 1)
+                if pool == 0:
+                    N_out += N_level * N_thin
+                else:
+                    N_out += S * C * N_thin
                 parameters = np.empty(N_out)
                 sampler.fit(prior_a, prior_b, jumprange, trunc_min, trunc_max,
                             indic, contains_missing,
-                            N_gibbs, burn, thin, mu, sigma2, use_probbase, is_added,
+                            N_gibbs, burn, thin, mu, sigma2, use_probbase, True,
                             mu_continue, sigma2_continue, theta_continue, impossible,
                             probbase_gibbs,
                             levels_gibbs,
@@ -1390,7 +1408,7 @@ class InSilicoVA:
                             y_new,
                             y,
                             parameters)
-                del sampler
+                # del sampler
                 fit_results = {"N_sub": N_sub, "C": C, "S": S,
                                "N_level": N_level,
                                "pool": pool, "fit": parameters}
@@ -1412,11 +1430,11 @@ class InSilicoVA:
 
     def _parse_result(self, fit_results: Dict) -> Dict:
         n = self.data.shape[0]
-        n_sub = fit_results["N_sub"]
-        c = fit_results["C"]
-        s = fit_results["S"]
-        n_level = fit_results["N_level"]
-        pool = fit_results["pool"]
+        n_sub = int(fit_results["N_sub"])
+        c = int(fit_results["C"])
+        s = int(fit_results["S"])
+        n_level = int(fit_results["N_level"])
+        pool = int(fit_results["pool"])
         fit = fit_results["fit"]
         counter = 0
         csmf_sub = None
@@ -1425,7 +1443,7 @@ class InSilicoVA:
         level_gibbs = None
 
         # extract N_thin
-        n_thin = fit[0]
+        n_thin = int(fit[0])
         counter += 1
         # extract CSMF
         if n_sub > 1:

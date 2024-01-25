@@ -171,10 +171,14 @@ def csmf_diag(csmf: Union[InSilico, List, np.ndarray, DataFrame],
                                columns=["Stationarity test", "start iteration",
                                         "p-value", "Halfwidth test", "Mean",
                                         "Halfwidth"])
-            df_out["Stationarity test"].replace(
-                {1.0: "passed", 0.0: "failed"}, inplace=True)
-            df_out["Halfwidth test"].replace(
-                {1.0: "passed", 0.0: "failed"}, inplace=True)
+            # df_out["Stationarity test"].replace(
+            #     {1.0: "passed", 0.0: "failed"}, inplace=True)
+            # df_out["Halfwidth test"].replace(
+            #     {1.0: "passed", 0.0: "failed"}, inplace=True)
+            df_out["Stationarity test"] = df_out["Stationarity test"].replace(
+                {1.0: "passed", 0.0: "failed"})
+            df_out["Halfwidth test"] = df_out["Halfwidth test"].replace(
+                {1.0: "passed", 0.0: "failed"})
             testout.append(df_out)
     # Gelman test
     if test == "gelman":

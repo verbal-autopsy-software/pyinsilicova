@@ -1317,7 +1317,6 @@ class InSilicoVA:
                     y_new,
                     y,
                     parameters)
-        # del sampler  #  deleting to help avoid crashes (of multiple access points to same memory)
 
         fit_results = {"N_sub": N_sub, "C": C, "S": S, "N_level": N_level,
                        "pool": pool,
@@ -1333,65 +1332,48 @@ class InSilicoVA:
         if self.auto_length:
             add = 1
             while not conv and add < 3:
-                # CRASHING HERE (note that many object below are created above, which may be
-                # problematic -- should the sampler below be sampler2; also, crashes appear to
-                # be inconsistent from same build wrt when the crash occurs).
                 mu_continue = results["mu_last"]
                 sigma2_continue = results["sigma2_last"]
                 theta_continue = results["theta_last"]
                 # same length as previous chain if added the first time
                 # double the length if the second time
-                self.n_sim = self.n_sim * 2
-                self.burnin = self.n_sim / 2
+                # self.n_sim = self.n_sim * 2
+                # self.burnin = self.n_sim / 2
                 N_gibbs = int(np.trunc(N_gibbs * (2 ** (add - 1))))
-                burn = int(0)
-                keepProb = not self.update_cond_prob
+                burn = 0
                 N_thin = int((N_gibbs - burn) / (thin))
                 probbase_gibbs = np.zeros((N_thin, S, C))
                 levels_gibbs = np.zeros((N_thin, N_level))
-                pnb_mean = np.zeros((N, C))
                 p_gibbs = np.zeros((N_thin, N_sub, C))
                 warnings.warn(
                     f"Not all causes with CSMF > {self.conv_csmf} are "
                     f"convergent.\n Increase chain length with another "
                     f"{N_gibbs} iterations.\n")
-                # fit_add = sampler.fit(
-                #     dimensions=dimensions,
-                #     probbase=self._cond_prob.copy(),
-                #     probbase_order=self._prob_order.copy(),
-                #     level_values=level_values, prior_a=prior_a,
-                #     prior_b=prior_b, jumprange=jumprange,
-                #     trunc_min=trunc_min, trunc_max=trunc_max,
-                #     indic=indic, subpop=subpop,
-                #     contains_missing=contains_missing, pool=pool,
-                #     seed=seed, N_gibbs=N_gibbs, burn=burn,
-                #     thin=thin, mu=mu, sigma2=sigma2,
-                #     this_is_Unix=this_is_Unix,
-                #     useProbbase=keepProb, isAdded=True,
-                #     mu_continue=mu_last,
-                #     sigma2_continue=sigma2_last,
-                #     theta_continue=theta_last, C_phy=C_phy,
-                #     broader=broader, assignment=assignment,
-                #     impossible=impossible,
-                #     openva_app=self.openva_app)
-                sampler = Sampler(dim_args,
-                                  subpop,
-                                  probbase,
-                                  probbase_order,
-                                  level_values,
-                                  count_m,
-                                  count_m_all,
-                                  count_c)
-                N_out = 1 + N_sub * C * N_thin + N * C + N_sub * (C * 2 + 1)
+                N_out = (1 + N_sub * C * N_thin +
+                         N * C + N_sub * (C * 2 + 1))
                 if pool == 0:
                     N_out += N_level * N_thin
                 else:
                     N_out += S * C * N_thin
                 parameters = np.empty(N_out)
-                sampler.fit(prior_a, prior_b, jumprange, trunc_min, trunc_max,
-                            indic, contains_missing,
-                            N_gibbs, burn, thin, mu, sigma2, use_probbase, True,
-                            mu_continue, sigma2_continue, theta_continue, impossible,
+                sampler.fit(prior_a,
+                            prior_b,
+                            jumprange,
+                            trunc_min,
+                            trunc_max,
+                            indic,
+                            contains_missing,
+                            N_gibbs,
+                            burn,
+                            thin,
+                            mu,
+                            sigma2,
+                            use_probbase,
+                            True,
+                            mu_continue,
+                            sigma2_continue,
+                            theta_continue,
+                            impossible,
                             probbase_gibbs,
                             levels_gibbs,
                             p_gibbs,
@@ -1408,7 +1390,6 @@ class InSilicoVA:
                             y_new,
                             y,
                             parameters)
-                # del sampler
                 fit_results = {"N_sub": N_sub, "C": C, "S": S,
                                "N_level": N_level,
                                "pool": pool, "fit": parameters}
@@ -1521,9 +1502,11 @@ class InSilicoVA:
                     # csmf_sub_all.append(np.zeros(dims))
                     # rescale the non-external CSMF once the external
                     # cause are added
-                    rescale = sum(self._sublist[val]) / (
-                            sum(self._sublist[val]) + sum(
-                        self._ext_sub == val))
+                    rescale = (
+                        sum(self._sublist[val]) /
+                        (sum(self._sublist[val]) +
+                         sum(self._ext_sub == val))
+                    )
                     temp = csmf_sub[j] * rescale
                     # combine the rescaled non-external CSMF with the
                     # external CSMF

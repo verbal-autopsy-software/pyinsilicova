@@ -55,7 +55,6 @@ public:
 	     py::array_t<double> & y_new_,
 	     py::array_t<double> & y_,
 	     py::array_t<double> & parameters_);
-    std::map<int, std::map<int, std::vector<int> > > get_pblevel() { return probbase_level;};
     int get_n() {return N;};
     int get_s() {return S;};
     int get_c() {return C;};
@@ -707,7 +706,7 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
     py::buffer_info buf_theta_cont = theta_continue.request();
     if (buf_theta_cont.shape[0] != N_sub && buf_theta_cont.shape[1] != C)
 	throw std::runtime_error("theta_continue needs to have shape (N_sub, C)");
-    int *ptr_theta_cont = (int *) buf_theta_cont.ptr;
+    double *ptr_theta_cont = (double *) buf_theta_cont.ptr;
     py::buffer_info buf_impossible = impossible.request();
     // this shape depends arguements for impossible causes
     // if (buf_impossible.shape[0] && buf_theta_cont.shape[1] != C)
@@ -768,13 +767,15 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
 	    }
 	}
     } else {
+	// py::print("Made it to 2nd run of sampler");
 	for (size_t sub = 0; sub < size_n_sub; ++sub) {
 	    for (size_t i = 0; i < size_c; ++i) {
 		mu_now(sub, i) = ptr_mu_cont[sub * size_c + i];
 		theta_now(sub, i) = ptr_theta_cont[sub * size_c + i];
 	    }
 	    sigma2_now(sub) = ptr_sigma2_cont[sub];
-	    
+	    // py::print("sigma2_now(sub): ", sigma2_now(sub));
+
 	    // recalculate p from theta
 	    double expsum = exp(1.0);
 	    for (int c = 1; c < C; ++c) {
@@ -784,6 +785,7 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
 		p_now(sub, c) = exp(theta_now(sub, c)) / expsum;
 	    }
 	}
+	// py::print("p_now(0, 0): ", p_now(0, 0));
     }
 
     // check impossible causes?
@@ -1096,6 +1098,5 @@ PYBIND11_MODULE(_sampler, m) {
 	     std::vector<double>,
 	     py::array_t<int> &, py::array_t<int> &,
 	     py::array_t<int> & >())
-	.def("fit", &Sampler::fit)
-        .def("get_pblevel", &Sampler::get_pblevel);
+	.def("fit", &Sampler::fit);
 }

@@ -24,7 +24,9 @@ public:
             py::array_t<int> subpop_,
 	    py::array_t<double> probbase_,
             py::array_t<int> probbase_order_,
-	    std::vector<double> level_values_,
+	    py::dict probbase_level_,
+	    // std::vector<double> level_values_,
+	    py::array_t<double> level_values_,
 	    py::array_t<int> & count_m_,
             py::array_t<int> & count_m_all_,
 	    py::array_t<int> & count_c_);
@@ -83,10 +85,13 @@ private:
     py::buffer_info buf_count_m_all;    // [S][C]
     py::buffer_info buf_count_c;        // [C]
 
-    std::vector<double> level_values;
-    std::map<int, std::map<int, std::vector<int> > > probbase_level;
+    // std::vector<double> level_values;
+    py::array_t<double> level_values;
+    py::buffer_info buf_level_values;
+    // std::map<int, std::map<int, std::vector<int> > > probbase_level;
+    py::dict probbase_level;
 
-    void levelize();
+    // void levelize();
     void fill_pnb(bool contains_missing,
 		  double *ptr_indic, int *ptr_subpop,
 		  py::array_t<double> & pnb_,
@@ -115,7 +120,7 @@ private:
 
 Sampler::Sampler(std::vector<int> &int_args, py::array_t<int> subpop_,
 		 py::array_t<double> probbase_, py::array_t<int> probbase_order_,
-		 std::vector<double> level_values_,
+		 py::dict probbase_level_, py::array_t<double> level_values_,
 		 py::array_t<int> & count_m_, py::array_t<int> & count_m_all_,
 		 py::array_t<int> & count_c_)
     // : N{int_args[0], S{int_args[1]}, C{int_args[2]}, N_sub{int_args[3]},
@@ -152,8 +157,12 @@ Sampler::Sampler(std::vector<int> &int_args, py::array_t<int> subpop_,
     if (buf_probbase_order.shape[0] != S && buf_probbase_order.shape[0] != C)
 	throw std::runtime_error("probbase_order needs to have shape (S, C)");
 
+    probbase_level = probbase_level_;
+
     level_values = level_values_;
-    if (level_values.size() != 15)
+    buf_level_values = level_values.request();
+    // if (level_values.size() != 15)
+    if (buf_level_values.shape[0] != 15)
 	throw std::runtime_error("level_values needs to have 15 elements");
 
     buf_count_m = count_m_.request();
@@ -166,7 +175,7 @@ Sampler::Sampler(std::vector<int> &int_args, py::array_t<int> subpop_,
     if (buf_count_c.shape[0] != C)
 	throw std::runtime_error("count_c needs to have length C");
 
-    levelize();
+    // levelize();
 }
 
 double Sampler::runif(){
@@ -184,48 +193,48 @@ double Sampler::rgamma(double alpha, double beta) {
     return rng_g(rng);
 }
 
-void Sampler::levelize()
-{
-    typedef std::map< int, std::vector<int> > inner_map;
-    // typedef std::map< int, inner_map > hash_map;
-    int *ptr = (int *) buf_probbase_order.ptr;
+// void Sampler::levelize()
+// {
+//     typedef std::map< int, std::vector<int> > inner_map;
+//     // typedef std::map< int, inner_map > hash_map;
+//     int *ptr = (int *) buf_probbase_order.ptr;
 
-    if (pool < 2) {
-	for (int s = 0; s < S; ++s) {
-	    for (int c = 0; c < C; ++ c) {
-		// get the level of the s-c combination
-		int level = (int) ptr[s*C + c];
-		// initialize if this cause if needed
-		if (probbase_level.find(c) == probbase_level.end()) {
-		    probbase_level.insert(
-			std::pair<int, inner_map>(c, inner_map()) );
-		}
-		if (probbase_level[c].find(level) == probbase_level[c].end()) {
-		    probbase_level[c].insert(
-			std::pair<int, std::vector<int> >(level, std::vector<int>()));
-		}
-		probbase_level[c][level].push_back(s);
-	    }
-	}
-    } else {
-	for (int s = 0; s < S; ++s) {
-	    for (int c = 0; c < C; ++ c) {
-		// get the level of the s-c combination
-		int level = (int) ptr[s*C + c];
-		// initialize if this cause if needed
-		if (probbase_level.find(s) == probbase_level.end()) {
-		    probbase_level.insert(
-			std::pair<int, inner_map>(s, inner_map()) );
-		}
-		if (probbase_level[s].find(level) == probbase_level[s].end()) {
-		    probbase_level[s].insert(
-			std::pair<int, std::vector<int> >(level, std::vector<int>()));
-		}
-		probbase_level[s][level].push_back(c);
-	    }
-	}
-    }
-}
+//     if (pool < 2) {
+// 	for (int s = 0; s < S; ++s) {
+// 	    for (int c = 0; c < C; ++ c) {
+// 		// get the level of the s-c combination
+// 		int level = (int) ptr[s*C + c];
+// 		// initialize if this cause if needed
+// 		if (probbase_level.find(c) == probbase_level.end()) {
+// 		    probbase_level.insert(
+// 			std::pair<int, inner_map>(c, inner_map()) );
+// 		}
+// 		if (probbase_level[c].find(level) == probbase_level[c].end()) {
+// 		    probbase_level[c].insert(
+// 			std::pair<int, std::vector<int> >(level, std::vector<int>()));
+// 		}
+// 		probbase_level[c][level].push_back(s);
+// 	    }
+// 	}
+//     } else {
+// 	for (int s = 0; s < S; ++s) {
+// 	    for (int c = 0; c < C; ++ c) {
+// 		// get the level of the s-c combination
+// 		int level = (int) ptr[s*C + c];
+// 		// initialize if this cause if needed
+// 		if (probbase_level.find(s) == probbase_level.end()) {
+// 		    probbase_level.insert(
+// 			std::pair<int, inner_map>(s, inner_map()) );
+// 		}
+// 		if (probbase_level[s].find(level) == probbase_level[s].end()) {
+// 		    probbase_level[s].insert(
+// 			std::pair<int, std::vector<int> >(level, std::vector<int>()));
+// 		}
+// 		probbase_level[s][level].push_back(c);
+// 	    }
+// 	}
+//     }
+// }
 
 void Sampler::fill_pnb(bool contains_missing,
 		       double *ptr_indic, int *ptr_subpop,
@@ -421,7 +430,7 @@ double Sampler::sample_trunc_beta(double a_, double b_, double min_, double max_
 void Sampler::trunc_beta2(py::array_t<double> prior_a, double prior_b,
 			  double trunc_min, double trunc_max) {
 
-    typedef std::map< int, std::vector<int> > inner_map;
+    // typedef std::map< int, std::vector<int> > inner_map;
 
     auto proxy_pbase = probbase.mutable_unchecked<2>();
     auto proxy_new_pbase = new_probbase.mutable_unchecked<2>();
@@ -438,11 +447,14 @@ void Sampler::trunc_beta2(py::array_t<double> prior_a, double prior_b,
     // loop over symptoms 
     for (int s = 0; s < S; ++s) {
         // find which level-symptom combinations under this cause
-        inner_map levels_under_s = probbase_level[s];
+        // inner_map levels_under_s = probbase_level[s];
+	py::dict levels_under_s = probbase_level[py::cast(s)];
         // find the list of all levels present under cause c
+
         std::vector<int> exist_levels_under_s;
         for (int l = 1; l <= N_level; ++l) {
-            if (levels_under_s.find(l) != levels_under_s.end()) {
+            // if (levels_under_s.find(l) != levels_under_s.end()) {
+            if (levels_under_s.contains(py::cast(l))){
                 exist_levels_under_s.push_back(l);
             }
         }
@@ -450,9 +462,11 @@ void Sampler::trunc_beta2(py::array_t<double> prior_a, double prior_b,
         for (int index = 0; index < (int) exist_levels_under_s.size(); ++index) {
             int l_current = exist_levels_under_s[index];
         // loop over symptoms s in the level l
-            for (int c : levels_under_s[l_current]) {
-                int count = ptr_count_m[s*C + c];
-                int count_all = ptr_count_m_all[s*C + c];
+            // for (int c : levels_under_s[l_current]) {
+	    py::list levels_under_s_l = levels_under_s[py::cast(l_current)];
+            for (auto c : levels_under_s_l) {
+                int count = ptr_count_m[s*C + c.cast<int>()];
+                int count_all = ptr_count_m_all[s*C + c.cast<int>()];
                 double lower = 0.0;
                 double upper = 1.0;
                 if (index == 0) {
@@ -460,8 +474,10 @@ void Sampler::trunc_beta2(py::array_t<double> prior_a, double prior_b,
                     int l_next = exist_levels_under_s[index + 1];
                     // find the max of those symptoms
                     lower = std::numeric_limits<double>::min();
-                    for (int i : levels_under_s[l_next]) {
-                        if (proxy_pbase(s, i) > lower) lower = proxy_pbase(s, i);
+		    py::list levels_under_s_l_next = levels_under_s[py::cast(l_next)];
+                    // for (int i : levels_under_s[l_next]) {
+                    for (auto i : levels_under_s_l_next) {
+                        if (proxy_pbase(s, i.cast<int>()) > lower) lower = proxy_pbase(s, i.cast<int>());
                     }
                     // make sure not lower than lower bound
                     lower = std::max(lower, trunc_min);
@@ -471,33 +487,39 @@ void Sampler::trunc_beta2(py::array_t<double> prior_a, double prior_b,
                     lower = trunc_min;
                     int l_prev = exist_levels_under_s[index - 1];
                     upper = std::numeric_limits<double>::max();
-                    for (int i : levels_under_s[l_prev]) {
-                        if (proxy_new_pbase(s, i) < upper) upper = proxy_new_pbase(s, i);
+		    py::list levels_under_s_l_prev = levels_under_s[py::cast(l_prev)];
+                    // for (int i : levels_under_s[l_prev]) {
+                    for (auto i : levels_under_s_l_prev) {
+                        if (proxy_new_pbase(s, i.cast<int>()) < upper) upper = proxy_new_pbase(s, i.cast<int>());
                     }
                     upper = std::min(upper, trunc_max);
                     // if in the middle
                 } else {
                     int l_next = exist_levels_under_s[index + 1];
                     lower = std::numeric_limits<double>::min();
-                    for (int i : levels_under_s[l_next]) {
-                        if (proxy_pbase(s, i) > lower) lower = proxy_pbase(s, i);
+                    // for (int i : levels_under_s[l_next]) {
+		    py::list levels_under_s_l_next = levels_under_s[py::cast(l_next)];
+                    for (auto i : levels_under_s_l_next) {
+                        if (proxy_pbase(s, i.cast<int>()) > lower) lower = proxy_pbase(s, i.cast<int>());
                     }
                     lower = std::max(lower, trunc_min);
                     int l_prev = exist_levels_under_s[index - 1];
                     upper = std::numeric_limits<double>::max();
-                    for (int i : levels_under_s[l_prev]) {
-                        if (proxy_new_pbase(s, i) < upper) upper = proxy_new_pbase(s, i);
+                    // for (int i : levels_under_s[l_prev]) {
+		    py::list levels_under_s_l_prev = levels_under_s[py::cast(l_prev)];
+                    for (auto i : levels_under_s_l_prev) {
+                        if (proxy_new_pbase(s, i.cast<int>()) < upper) upper = proxy_new_pbase(s, i.cast<int>());
                     }
                     upper = std::min(upper, trunc_max);
                 }
                 // if range is invalide, use higher case
                 if (lower >= upper) {
-                    proxy_new_pbase(s, c) = upper;
+                    proxy_new_pbase(s, c.cast<int>()) = upper;
                 } else {
                     // find the beta distribution parameters, note level starting from 1
                     a = proxy_prior_a(l_current-1) + count;
                     b = prior_b + count_all - a;
-		    proxy_new_pbase(s, c) = sample_trunc_beta(a, b, lower, upper);
+		    proxy_new_pbase(s, c.cast<int>()) = sample_trunc_beta(a, b, lower, upper);
                 }
             }
         }
@@ -511,7 +533,7 @@ void Sampler::trunc_beta2(py::array_t<double> prior_a, double prior_b,
 void Sampler::trunc_beta(py::array_t<double> prior_a, double prior_b,
 			 double trunc_min, double trunc_max) {
 
-    typedef std::map< int, std::vector<int> > inner_map;
+    // typedef std::map< int, std::vector<int> > inner_map;
 
     auto proxy_pbase = probbase.mutable_unchecked<2>();
     auto proxy_new_pbase = new_probbase.mutable_unchecked<2>();
@@ -528,11 +550,13 @@ void Sampler::trunc_beta(py::array_t<double> prior_a, double prior_b,
     // loop over causes c
     for (int c = 0; c < C; ++c) {
         // find which level-symptom combinations under this cause
-        inner_map levels_under_c = probbase_level[c];
+        // inner_map levels_under_c = probbase_level[c];
+	py::dict levels_under_c = probbase_level[py::cast(c)];
         //find the list of all levels present under cause c
         std::vector<int> exist_levels_under_c;
         for (int l = 1; l <= N_level; ++l) {
-            if (levels_under_c.find(l) != levels_under_c.end()) {
+            // if (levels_under_c.find(l) != levels_under_c.end()) {
+	    if (levels_under_c.contains(py::cast(l))) {
                 exist_levels_under_c.push_back(l);
             }
         }
@@ -540,9 +564,11 @@ void Sampler::trunc_beta(py::array_t<double> prior_a, double prior_b,
         for (int index = 0; index < (int) exist_levels_under_c.size(); ++index) {
             int l_current = exist_levels_under_c[index];
         // loop over symptoms s in the level l
-            for (int s : levels_under_c[l_current]) {
-                int count = ptr_count_m[s*C + c];
-                int count_all = ptr_count_m_all[s*C + c];
+            // for (int s : levels_under_c[l_current]) {
+	    py::list levels_under_c_l_current = levels_under_c[py::cast(l_current)];
+            for (auto s : levels_under_c_l_current) {
+                int count = ptr_count_m[s.cast<int>()*C + c];
+                int count_all = ptr_count_m_all[s.cast<int>()*C + c];
                 double lower = 0.0;
                 double upper = 1.0;
                 if (index == 0) {
@@ -550,8 +576,10 @@ void Sampler::trunc_beta(py::array_t<double> prior_a, double prior_b,
                     int l_next = exist_levels_under_c[index + 1];
                     // find the max of those symptoms
                     lower = std::numeric_limits<double>::min();
-                    for (int i : levels_under_c[l_next]) {
-                        if (proxy_pbase(i, c) > lower) lower = proxy_pbase(i, c);
+                    // for (int i : levels_under_c[l_next]) {
+		    py::list levels_under_c_l_next = levels_under_c[py::cast(l_next)];
+                    for (auto i : levels_under_c_l_next) {
+                        if (proxy_pbase(i.cast<int>(), c) > lower) lower = proxy_pbase(i.cast<int>(), c);
                     }
                     // make sure not lower than lower bound
                     lower = std::max(lower, trunc_min);
@@ -561,33 +589,39 @@ void Sampler::trunc_beta(py::array_t<double> prior_a, double prior_b,
                     lower = trunc_min;
                     int l_prev = exist_levels_under_c[index - 1];
                     upper = std::numeric_limits<double>::max();
-                    for (int i : levels_under_c[l_prev]) {
-                        if (proxy_new_pbase(i, c) < upper) upper = proxy_new_pbase(i, c);
+                    // for (int i : levels_under_c[l_prev]) {
+		    py::list levels_under_c_l_prev = levels_under_c[py::cast(l_prev)];
+                    for (auto i : levels_under_c_l_prev) {
+                        if (proxy_new_pbase(i.cast<int>(), c) < upper) upper = proxy_new_pbase(i.cast<int>(), c);
                     }
                     upper = std::min(upper, trunc_max);
                     // if in the middle
                 } else {
                     int l_next = exist_levels_under_c[index + 1];
                     lower = std::numeric_limits<double>::min();
-                    for (int i : levels_under_c[l_next]) {
-                        if (proxy_pbase(i, c) > lower) lower = proxy_pbase(i, c);
+                    // for (int i : levels_under_c[l_next]) {
+		    py::list levels_under_c_l_next = levels_under_c[py::cast(l_next)];
+                    for (auto i : levels_under_c_l_next) {
+                        if (proxy_pbase(i.cast<int>(), c) > lower) lower = proxy_pbase(i.cast<int>(), c);
                     }
                     lower = std::max(lower, trunc_min);
                     int l_prev = exist_levels_under_c[index - 1];
                     upper = std::numeric_limits<double>::max();
-                    for (int i : levels_under_c[l_prev]) {
-                        if (proxy_new_pbase(i, c) < upper) upper = proxy_new_pbase(i, c);
+                    // for (int i : levels_under_c[l_prev]) {
+		    py::list levels_under_c_l_prev = levels_under_c[py::cast(l_prev)];
+                    for (auto i : levels_under_c_l_prev) {
+                        if (proxy_new_pbase(i.cast<int>(), c) < upper) upper = proxy_new_pbase(i.cast<int>(), c);
                     }
                     upper = std::min(upper, trunc_max);
                 }
                 // if range is invalide, use higher case
                 if (lower >= upper) {
-                    proxy_new_pbase(s, c) = upper;
+                    proxy_new_pbase(s.cast<int>(), c) = upper;
                 } else {
                     // find the beta distribution parameters, note level starting from 1
                     a = proxy_prior_a(l_current-1) + count;
                     b = prior_b + count_all - a;
-		    proxy_new_pbase(s, c) = sample_trunc_beta(a, b, lower, upper);
+		    proxy_new_pbase(s.cast<int>(), c) = sample_trunc_beta(a, b, lower, upper);
                 }
             }
         }
@@ -606,6 +640,7 @@ void Sampler::trunc_beta_pool(py::array_t<double> prior_a, double prior_b,
     auto proxy_pbase = probbase.mutable_unchecked<2>();
     auto proxy_pbase_order = probbase_order.mutable_unchecked<2>();
     auto proxy_prior_a = prior_a.mutable_unchecked<1>();
+    double *ptr_level_values = (double *) buf_level_values.ptr;
     int *ptr_count_m = (int *) buf_count_m.ptr;            // counts of yes (S*C)
     int *ptr_count_m_all = (int *) buf_count_m_all.ptr;    // counts of yes and no (S*C)
     double a = 0.0;
@@ -617,10 +652,15 @@ void Sampler::trunc_beta_pool(py::array_t<double> prior_a, double prior_b,
 	int count_all = 0;
 	//count appearances
 	for (int c = 0; c < C; ++c) {
-	    if (probbase_level[c].find(l) != probbase_level[c].end()) {
-		for (int s : probbase_level[c][l]) {
-		    count += ptr_count_m[s*C + c];
-		    count_all += ptr_count_m_all[s*C + c];
+	    // if (probbase_level[c].find(l) != probbase_level[c].end()) {
+	    py::dict level_c = probbase_level[py::cast(c)];
+	    if (level_c.contains(py::cast(l))) {
+		// for (int s : probbase_level[c][l]) {
+		py::list level_c_l = level_c[py::cast(l)];
+		// for (int s : probbase_level[c][l]) {
+		for (auto s : level_c_l) {
+		    count += ptr_count_m[s.cast<int>()*C + c];
+		    count_all += ptr_count_m_all[s.cast<int>()*C + c];
 		}
 	    }
 	}
@@ -629,14 +669,16 @@ void Sampler::trunc_beta_pool(py::array_t<double> prior_a, double prior_b,
 	// note l starts from 1, level_values have index starting from 0
 	if (l == 1) {
 	    // lower bound is the max of this next level
-	    lower = std::max(level_values[l], trunc_min);
+	    // lower = std::max(level_values[l], trunc_min);
+	    lower = std::max(ptr_level_values[l], trunc_min);
 	    upper = trunc_max;
 	} else if (l == N_level) {
 	    lower = trunc_min;
 	    // upper bound is the min of previous level
 	    upper = std::min(new_level_values[l-2], trunc_max);
 	} else {
-	    lower = std::max(level_values[l], trunc_min);
+	    // lower = std::max(level_values[l], trunc_min);
+	    lower = std::max(ptr_level_values[l], trunc_min);
 	    upper = std::min(new_level_values[l-2], trunc_max);
 	}
 	if (lower >= upper) {
@@ -647,11 +689,14 @@ void Sampler::trunc_beta_pool(py::array_t<double> prior_a, double prior_b,
 	    new_level_values[l-1] = sample_trunc_beta(a, b, lower, upper);
 	}
     }
-    level_values = new_level_values;
+    // level_values = new_level_values;
+    for (int l = 0; l < N_level; ++l) {
+	ptr_level_values[l] = new_level_values[l];
+    }
     for (int s = 0; s < S; ++s) {
 	for (int c = 0; c < C; ++c) {
 	    int idx = (int) (proxy_pbase_order(s, c) - 1);
-	    proxy_pbase(s, c) = level_values[idx];
+	    proxy_pbase(s, c) = ptr_level_values[idx];
 	}
     }
 }
@@ -713,7 +758,8 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
     // 	throw std::runtime_error("theta_continue needs to have shape (N_sub, C)");
     int *ptr_impossible = (int *) buf_impossible.ptr;
     double *ptr_probbase = (double *) buf_probbase.ptr;
-    
+    double *ptr_level_values = (double *) buf_level_values.ptr;
+
     size_t size_n_sub = buf_mu_cont.shape[0];
     size_t size_c = buf_mu_cont.shape[1];
 
@@ -981,7 +1027,8 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
 	    }
 	    if (pool == 0) {
 		for (int d1 = 0; d1 < N_level; ++d1) {
-		    levels_gibbs(save, d1) = level_values[d1];
+		    // levels_gibbs(save, d1) = level_values[d1];
+		    levels_gibbs(save, d1) = ptr_level_values[d1];
 		}
 	    } else {
 		for (int d1 = 0; d1 < S; ++d1) {
@@ -1095,7 +1142,8 @@ PYBIND11_MODULE(_sampler, m) {
     py::class_<Sampler>(m, "Sampler")
 	.def(py::init<std::vector<int> &, py::array_t<int>,
 	     py::array_t<double>, py::array_t<int>,
-	     std::vector<double>,
+	     py::dict,
+	     py::array_t<double>,
 	     py::array_t<int> &, py::array_t<int> &,
 	     py::array_t<int> & >())
 	.def("fit", &Sampler::fit);

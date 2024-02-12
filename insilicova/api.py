@@ -1225,6 +1225,49 @@ class InSilicoVA:
         self._theta_last = np.zeros(
             shape=(self._n_sub, self._cond_prob_true.shape[1]))
 
+    # function to summarize the current levels of probbase
+    def _levelize(self, pool: int) -> dict:
+        S = self.data.shape[1] - 1
+        C = self._cond_prob_true.shape[1]
+        probbase_order = self._prob_order.copy()
+        probbase_level = {}
+        # if pool = 0, doesn't matter which
+        # if pool = 1, count level by cause
+        if pool == 0 or pool == 1:
+            # loop over all s and c combinations
+            for s in range(S):
+                for c in range(C):
+                    # get level of this s-c combination
+                    level = int(probbase_order[s, c])
+                    # initialize if this cause has not been intialized in probbase_level yet
+                    if c not in probbase_level:
+                        # self.probbase_level[c] = dict of K-int and V-list of int
+                        probbase_level[c] = {}
+                        # initialize if this level under this cause has not been initialized
+                    if level not in probbase_level[c]:
+                        # self.probbase_level[c][level] = list of int
+                        probbase_level[c][level] = []
+                        # save the cause-level-symptom combination
+                    probbase_level[c][level].append(s)
+        # if pool = 2, count level by symptom
+        elif pool == 2:
+            # loop over all s and c combinations
+            for s in range(S):
+                for c in range(C):
+                    # get level of this s-c combination
+                    level = int(probbase_order[s, c])
+                    # initialize if this cause has not been initialized in probbase_level yet
+                    if s not in probbase_level:
+                        # self.probbase_level[s] = dict with K-int and V-list of int
+                        probbase_level[s] = {}
+                    # initialize if this level under this cause has not been initialized
+                    if level not in probbase_level[s]:
+                        # self.probbase_level[s][level] = list of int
+                        probbase_level[s][level] = []
+                    # save the cause-level-symptom combination
+                    probbase_level[s][level].append(c)
+        return probbase_level
+
     def _sample_posterior(self):
         N = self.data.shape[0]
         S = self.data.shape[1] - 1
@@ -1242,10 +1285,12 @@ class InSilicoVA:
         count_m = np.zeros((S, C), dtype=np.int32)
         count_m_all = np.zeros((S, C), dtype=np.int32)
         count_c = np.zeros(C, dtype=np.int32)
+        probbase_level = self._levelize(pool)
         sampler = Sampler(dim_args,
                           subpop,
                           probbase,
                           probbase_order,
+                          probbase_level,
                           level_values,
                           count_m,
                           count_m_all,

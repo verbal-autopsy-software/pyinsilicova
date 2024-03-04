@@ -921,8 +921,8 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
 
         // count the appearance of each cause
 	for (int sub = 0; sub < N_sub; ++sub) {
-	    for (int n = 0; n < N; ++n) {
-		y(sub, n) = 0;
+	    for (int c = 0; c < C; ++c) {
+		y(sub, c) = 0;
 	    }
         }
         for (int n = 0; n < N; ++n) {

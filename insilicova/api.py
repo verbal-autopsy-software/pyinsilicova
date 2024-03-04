@@ -1279,7 +1279,8 @@ class InSilicoVA:
         subpop = subpop.astype(np.int32)
         probbase = self._cond_prob.copy()
         probbase_order = self._prob_order.copy()
-        level_values = self._dist.tolist()
+        probbase_order = probbase_order.astype(np.int32)
+        level_values = self._dist.copy()
         pool = int(not self.keep_probbase_level + self._probbase_by_symp_dev)
         dim_args = [N, S, C, N_sub, N_level, pool, self.seed]
         count_m = np.zeros((S, C), dtype=np.int32)

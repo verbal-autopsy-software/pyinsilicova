@@ -49,3 +49,8 @@ dependencies = [
 
 [tool.setuptools.package-data]
 "insilicova.data" = ["*.csv"]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+    ]

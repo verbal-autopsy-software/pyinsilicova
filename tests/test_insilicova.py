@@ -7,7 +7,8 @@ import os
 import sys
 from typing import Dict
 from insilicova.api import InSilicoVA
-from insilicova.exceptions import ArgumentException, DataException
+from insilicova.exceptions import (ArgumentException, DataException,
+                                   SamplerException)
 from insilicova.utils import get_vadata
 from insilicova.structures import InSilico, InSilicoAllExt
 
@@ -15,8 +16,8 @@ va_data = get_vadata("randomva5", verbose=False)
 
 
 with pytest.warns(UserWarning):
-    default = InSilicoVA(va_data, subpop=["i019a"], n_sim=10, burnin=1,
-                         thin=1, auto_length=False)
+        default = InSilicoVA(va_data, subpop=["i019a"], n_sim=1000, burnin=300,
+                             thin=10, auto_length=False)
 
 va_data1 = get_vadata("randomva1", verbose=False)
 probbase3 = get_vadata("probbaseV3", verbose=False)

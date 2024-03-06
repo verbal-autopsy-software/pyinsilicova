@@ -34,7 +34,7 @@ public:
 	     double jumprange, double trunc_min,
 	     double trunc_max,
 	     const py::array_t<double> indic,
-	     int contains_missing, int N_gibbs, int burn,
+	     bool contains_missing, int N_gibbs, int burn,
 	     int thin, py::array_t<double> mu, double sigma2,
 	     bool use_probbase, bool is_added,
 	     const py::array_t<double> mu_continue,
@@ -253,7 +253,7 @@ void Sampler::fill_pnb(bool contains_missing,
 	for (int c = 0; c < C; ++c) {
 	    int sub = ptr_subpop[n];
 	    pnb(n, c) = csmf_sub(sub, c) * zero_matrix(n, c);
-	}
+	    }
     }
     // calculate posterior
     for (int n = 0; n < N; ++n) {
@@ -705,7 +705,7 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
 		  double jumprange, double trunc_min,
 		  // double trunc_max, const py::array_t<int> indic,  // assumes numpy.int32
 		  double trunc_max, const py::array_t<double> indic,  // assumes numpy.int32
-		  int contains_missing, int N_gibbs, int burn,
+		  bool contains_missing, int N_gibbs, int burn,
 		  int thin, py::array_t<double> mu, double sigma2,
 		  bool use_probbase, bool is_added,
 		  const py::array_t<double> mu_continue,

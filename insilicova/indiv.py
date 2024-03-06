@@ -206,7 +206,7 @@ def get_indiv(insilico_obj: InSilico,
         d0, d1, d2 = indivprob_ext.shape
         indivprob_ext = indivprob_ext.reshape((d0 * d1, d2))
         indivprob_ext = np.column_stack((np.repeat(id_indprob_ext, d1),
-                                         np.tile(np.arange(1, (d1 + 1), d0)),
+                                         np.tile(np.arange(1, (d1 + 1)), d0),
                                          indivprob_ext))
         # TODO: test if list(insilico_obj.indiv_prob) should be
         #       indivprob_cause_names (not using it)
@@ -438,7 +438,7 @@ def IndivProb(data: np.ndarray,
             factor[index_eq1, :] = condprob[t, index_eq1, :].copy()
             factor[index_eq0, :] = 1 - condprob[t, index_eq0, :].copy()
             index_eq1_or_eq0 = np.isin(data[i, :], [0, 1])
-            allp[i, :, t] *= np.product(factor[index_eq1_or_eq0], axis=0)
+            allp[i, :, t] *= np.prod(factor[index_eq1_or_eq0], axis=0)
             sum_allp = sum(allp[i, :, t])
             if sum_allp > 0:
                 allp[i, :, t] = allp[i, :, t] / sum_allp
@@ -485,7 +485,7 @@ def AggIndivProb(data: np.ndarray,
             factor[index_eq1, :] = condprob[t, index_eq1, :].copy()
             factor[index_eq0, :] = 1 - condprob[t, index_eq0, :].copy()
             index_eq1_or_eq0 = np.isin(data[i, :], [0, 1])
-            tmp *= np.product(factor[index_eq1_or_eq0], axis=0)
+            tmp *= np.prod(factor[index_eq1_or_eq0], axis=0)
             sum_tmp = sum(tmp)
             if sum_tmp == 0:
                 allp[g, :, t] = tmp
@@ -539,7 +539,7 @@ def IndivProbSample(data: np.ndarray,
             factor[index_eq1, :] = condprob[t, index_eq1, :].copy()
             factor[index_eq0, :] = 1 - condprob[t, index_eq0, :].copy()
             index_eq1_or_eq0 = np.isin(data[i, :], [0, 1])
-            allp[i, :, t] *= np.product(factor[index_eq1_or_eq0], axis=0)
+            allp[i, :, t] *= np.prod(factor[index_eq1_or_eq0], axis=0)
             sum_allp = sum(allp[i, :, t])
             if sum_allp > 0:
                 allp[i, :, t] = allp[i, :, t]/sum_allp

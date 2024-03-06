@@ -36,7 +36,8 @@ with localconverter(robjects.default_converter + pandas2ri.converter):
     r_indiv_upp = get_conversion().rpy2py(robj_iupp)
 
 va_data = get_vadata("randomva5", verbose=False)
-py_out = InSilicoVA(va_data)
+with pytest.warns(UserWarning):
+    py_out = InSilicoVA(va_data)
 py_results = py_out.get_results()
 py_csmf = py_results.get_csmf(top=61)
 py_indiv = get_indiv(py_results, va_data)
@@ -63,7 +64,7 @@ def test_csmf_all():
     for i in range(r_csmf.shape[0]):
         for j in range(r_csmf.shape[1]):
             a = r_csmf.iloc[i, j]
-            b = py_csmf.iloc[i][j]
+            b = py_csmf.iloc[i, j]
             print(f"{abs(a - b) < 0.015}\n")
             assert abs(a - b) < 0.015
 

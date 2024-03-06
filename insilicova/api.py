@@ -1304,7 +1304,7 @@ class InSilicoVA:
         trunc_min = self.trunc_min
         trunc_max = self.trunc_max
         indic = self._indic.copy()
-        contains_missing = self._contains_missing
+        contains_missing = bool(self._contains_missing)
         N_gibbs = self._n_gibbs
         burn = self.burnin
         thin = self.thin

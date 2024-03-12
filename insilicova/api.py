@@ -1296,7 +1296,6 @@ class InSilicoVA:
                           count_m,
                           count_m_all,
                           count_c)
-                          #  gui_ctrl=self.gui_ctrl)   # TODO: need to add this
         dimensions = [N, S, C, N_sub, N_level]
         prior_a = self.levels_prior.copy()
         prior_b = self._prior_b_cond
@@ -1362,8 +1361,10 @@ class InSilicoVA:
                     pnb,
                     y_new,
                     y,
-                    parameters)
-
+                    parameters,
+                    self.gui_ctrl)
+        if self.gui_ctrl["break"]:
+            raise HaltGUIException
         fit_results = {"N_sub": N_sub, "C": C, "S": S, "N_level": N_level,
                        "pool": pool,
                        "fit": parameters}
@@ -1435,7 +1436,10 @@ class InSilicoVA:
                             pnb,
                             y_new,
                             y,
-                            parameters)
+                            parameters,
+                            self.gui_ctrl)
+                if self.gui_ctrl["break"]:
+                    raise HaltGUIException
                 fit_results = {"N_sub": N_sub, "C": C, "S": S,
                                "N_level": N_level,
                                "pool": pool, "fit": parameters}

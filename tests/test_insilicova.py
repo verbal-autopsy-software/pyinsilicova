@@ -6,9 +6,10 @@ import numpy as np
 import os
 import sys
 from typing import Dict
+# import threading
 from insilicova.api import InSilicoVA
 from insilicova.exceptions import (ArgumentException, DataException,
-                                   SamplerException)
+                                   HaltGUIException, SamplerException)
 from insilicova.utils import get_vadata
 from insilicova.structures import InSilico, InSilicoAllExt
 
@@ -940,3 +941,13 @@ def test_all_external():
     with pytest.warns(UserWarning):
         out = InSilicoVA(tmp_data)
     assert isinstance(out.results, InSilicoAllExt)
+
+
+# def run_insilicova(ctrl):
+#     out = InSilicoVA(va_data, gui_ctrl=ctrl)
+#     return out
+
+# ctrl = {"break": False}
+# x = threading.Thread(target=run_insilicova, args=(ctrl, ))
+# x.start()
+# ctrl["break"] = True

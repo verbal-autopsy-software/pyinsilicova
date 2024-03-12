@@ -56,7 +56,8 @@ public:
 	     py::array_t<double> & pnb_,
 	     py::array_t<double> & y_new_,
 	     py::array_t<double> & y_,
-	     py::array_t<double> & parameters_);
+	     py::array_t<double> & parameters_,
+	     py::dict gui_ctrl);
     int get_n() {return N;};
     int get_s() {return S;};
     int get_c() {return C;};
@@ -727,7 +728,8 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
 		  py::array_t<double> & pnb_,
 		  py::array_t<double> & y_new_,
 		  py::array_t<double> & y_,
-		  py::array_t<double> & parameters_)
+		  py::array_t<double> & parameters_,
+		  py::dict gui_ctrl)
 {
        
     double d;
@@ -913,8 +915,11 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
 
     // start loop
     auto start = std::chrono::system_clock::now();
+    std::string key = "break";
+    bool early_stop = false;
     for (int k = 0; k < N_gibbs; ++k) {
-	// HERE -- check gui_ctrl["break"] (python dictionary)
+        early_stop = gui_ctrl[py::cast(key)].cast<bool>();
+        if (early_stop) break;
 
 	// sample new y vector
         sample_y(pnb_, y_new_);

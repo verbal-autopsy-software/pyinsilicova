@@ -57,7 +57,9 @@ public:
 	     py::array_t<double> & y_new_,
 	     py::array_t<double> & y_,
 	     py::array_t<double> & parameters_,
-	     py::dict gui_ctrl);
+	     py::dict gui_ctrl,
+	     bool is_openva_app,
+	     py::object openva_app);
     int get_n() {return N;};
     int get_s() {return S;};
     int get_c() {return C;};
@@ -729,10 +731,13 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
 		  py::array_t<double> & y_new_,
 		  py::array_t<double> & y_,
 		  py::array_t<double> & parameters_,
-		  py::dict gui_ctrl)
+		  py::dict gui_ctrl,
+		  bool is_openva_app,
+		  py::object openva_app)
 {
        
     double d;
+    int progress = 0;
     int *ptr_subpop = (int *) buf_subpop.ptr;
     py::buffer_info buf_indic = indic.request();  // these are ints, but not treated as such in Python -- need np.int32
     if (buf_indic.shape[0] != N && buf_indic.shape[1] != S)
@@ -1015,6 +1020,10 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
             t1 = std::ceil(t1 * 100.0) / 100.0;
             t2 = std::ceil(t2 * 100.0) / 100.0;
             py::print(t1, "min elapsed, ", t2, "min remaining", '\n');
+        }
+        if (is_openva_app) {
+            progress = int(100*k / (N_gibbs + 1));
+            openva_app.attr("emit")(progress);
         }
 
 	// note this condition includes the first iteration

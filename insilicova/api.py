@@ -1342,6 +1342,7 @@ class InSilicoVA:
         else:
             N_out += S * C * N_thin
         parameters = np.empty(N_out)
+        is_openva_app = self.openva_app is not None
         sampler.fit(prior_a, prior_b, jumprange, trunc_min, trunc_max,
                     indic, contains_missing,
                     N_gibbs, burn, thin, mu, sigma2, use_probbase, is_added,
@@ -1362,7 +1363,9 @@ class InSilicoVA:
                     y_new,
                     y,
                     parameters,
-                    self.gui_ctrl)
+                    self.gui_ctrl,
+                    is_openva_app,
+                    self.openva_app)
         if self.gui_ctrl["break"]:
             raise HaltGUIException
         fit_results = {"N_sub": N_sub, "C": C, "S": S, "N_level": N_level,
@@ -1437,7 +1440,9 @@ class InSilicoVA:
                             y_new,
                             y,
                             parameters,
-                            self.gui_ctrl)
+                            self.gui_ctrl,
+                            is_openva_app,
+                            self.openva_app)
                 if self.gui_ctrl["break"]:
                     raise HaltGUIException
                 fit_results = {"N_sub": N_sub, "C": C, "S": S,

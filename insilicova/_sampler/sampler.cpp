@@ -22,44 +22,44 @@ class Sampler {
 public:
     Sampler(std::vector<int> &int_args,
             py::array_t<int> subpop_,
-	    py::array_t<double> probbase_,
+            py::array_t<double> probbase_,
             py::array_t<int> probbase_order_,
-	    py::dict probbase_level_,
-	    // std::vector<double> level_values_,
-	    py::array_t<double> level_values_,
-	    py::array_t<int> & count_m_,
+            py::dict probbase_level_,
+            // std::vector<double> level_values_,
+            py::array_t<double> level_values_,
+            py::array_t<int> & count_m_,
             py::array_t<int> & count_m_all_,
-	    py::array_t<int> & count_c_);
+            py::array_t<int> & count_c_);
     void fit(py::array_t<double> prior_a, double prior_b,
-	     double jumprange, double trunc_min,
-	     double trunc_max,
-	     const py::array_t<double> indic,
-	     bool contains_missing, int N_gibbs, int burn,
-	     int thin, py::array_t<double> mu, double sigma2,
-	     bool use_probbase, bool is_added,
-	     const py::array_t<double> mu_continue,
-	     const py::array_t<double> sigma2_continue,
-	     const py::array_t<double> theta_continue,
-	     const py::array_t<int> impossible,        // IN PYTHON THESE NEED dtype=np.int32!!!!
-	     py::array_t<double> & probbase_gibbs_,    // OK to change the rest of these directly
-	     py::array_t<double> & pnb_mean_,
-	     py::array_t<double> & levels_gibbs_,      // (Python just passes empty numpy arrays
-	     py::array_t<double> & p_gibbs_,
-	     std::vector<int> &n_accept,
-	     py::array_t<double> & mu_now_,
-	     py::array_t<double> & sigma2_now_,
-	     py::array_t<double> & theta_now_,
-	     py::array_t<double> & p_now_,
-	     py::array_t<int> & zero_matrix_,          // IN PYTHON THESE NEED dtype=np.int32!!!!
-	     py::array_t<int> & zero_group_matrix_,    // IN PYTHON THESE NEED dtype=np.int32!!!!
-	     py::array_t<int> & remove_causes_,
-	     py::array_t<double> & pnb_,
-	     py::array_t<double> & y_new_,
-	     py::array_t<double> & y_,
-	     py::array_t<double> & parameters_,
-	     py::dict gui_ctrl,
-	     bool is_openva_app,
-	     py::object openva_app);
+             double jumprange, double trunc_min,
+             double trunc_max,
+             const py::array_t<double> indic,
+             bool contains_missing, int N_gibbs, int burn,
+             int thin, py::array_t<double> mu, double sigma2,
+             bool use_probbase, bool is_added,
+             const py::array_t<double> mu_continue,
+             const py::array_t<double> sigma2_continue,
+             const py::array_t<double> theta_continue,
+             const py::array_t<int> impossible,        // IN PYTHON THESE NEED dtype=np.int32!!!!
+             py::array_t<double> & probbase_gibbs_,    // OK to change the rest of these directly
+             py::array_t<double> & pnb_mean_,
+             py::array_t<double> & levels_gibbs_,      // (Python just passes empty numpy arrays
+             py::array_t<double> & p_gibbs_,
+             std::vector<int> &n_accept,
+             py::array_t<double> & mu_now_,
+             py::array_t<double> & sigma2_now_,
+             py::array_t<double> & theta_now_,
+             py::array_t<double> & p_now_,
+             py::array_t<int> & zero_matrix_,          // IN PYTHON THESE NEED dtype=np.int32!!!!
+             py::array_t<int> & zero_group_matrix_,    // IN PYTHON THESE NEED dtype=np.int32!!!!
+             py::array_t<int> & remove_causes_,
+             py::array_t<double> & pnb_,
+             py::array_t<double> & y_new_,
+             py::array_t<double> & y_,
+             py::array_t<double> & parameters_,
+             py::dict gui_ctrl,
+             bool is_openva_app,
+             py::object openva_app);
     int get_n() {return N;};
     int get_s() {return S;};
     int get_c() {return C;};
@@ -96,12 +96,12 @@ private:
 
     // void levelize();
     void fill_pnb(bool contains_missing,
-		  double *ptr_indic, int *ptr_subpop,
-		  py::array_t<double> & pnb_,
-		  py::array_t<double> & csmf_sub_,
-		  py::array_t<int> & zero_matrix_);
+                  double *ptr_indic, int *ptr_subpop,
+                  py::array_t<double> & pnb_,
+                  py::array_t<double> & csmf_sub_,
+                  py::array_t<int> & zero_matrix_);
     void sample_y(py::array_t<double> & pnb_,
-		  py::array_t<double> & y_);
+                  py::array_t<double> & y_);
     void theta_block_update(py::array_t<double> & theta_now_,
                             double jumprange_,
                             py::array_t<double> & mu_now_,
@@ -122,12 +122,12 @@ private:
 };
 
 Sampler::Sampler(std::vector<int> &int_args, py::array_t<int> subpop_,
-		 py::array_t<double> probbase_, py::array_t<int> probbase_order_,
-		 py::dict probbase_level_, py::array_t<double> level_values_,
-		 py::array_t<int> & count_m_, py::array_t<int> & count_m_all_,
-		 py::array_t<int> & count_c_)
+                 py::array_t<double> probbase_, py::array_t<int> probbase_order_,
+                 py::dict probbase_level_, py::array_t<double> level_values_,
+                 py::array_t<int> & count_m_, py::array_t<int> & count_m_all_,
+                 py::array_t<int> & count_c_)
     // : N{int_args[0], S{int_args[1]}, C{int_args[2]}, N_sub{int_args[3]},
-    // 	N_level{int_args[4]}, pool{int_args[5]}
+    //  N_level{int_args[4]}, pool{int_args[5]}
 {
     if (int_args.size() != 7) {
         throw std::runtime_error("int_args needs 7 elements (N, S, C, N_sub, N_level, pool, seed)");
@@ -144,13 +144,13 @@ Sampler::Sampler(std::vector<int> &int_args, py::array_t<int> subpop_,
     subpop = subpop_;
     buf_subpop = subpop.request();
     if (buf_subpop.shape[0] != N)
-	throw std::runtime_error("subpop needs to have size N");
+        throw std::runtime_error("subpop needs to have size N");
 
     py::buffer_info buf_pb_ = probbase_.request();
     probbase = py::array_t<double>(buf_pb_);   // make copy of probbase so we can make changes
     buf_probbase = probbase.request();
     if (buf_probbase.shape[0] != S && buf_probbase.shape[1] != C)
-	throw std::runtime_error("probbase needs to have shape (S, C)");
+        throw std::runtime_error("probbase needs to have shape (S, C)");
     // needed by trunc_beta family of functions
     new_probbase = py::array_t<double>(buf_pb_);   // used to update probbase in trunc_beta*
 
@@ -158,7 +158,7 @@ Sampler::Sampler(std::vector<int> &int_args, py::array_t<int> subpop_,
     probbase_order = py::array_t<int>(buf_pbo_);
     buf_probbase_order = probbase_order.request();
     if (buf_probbase_order.shape[0] != S && buf_probbase_order.shape[0] != C)
-	throw std::runtime_error("probbase_order needs to have shape (S, C)");
+        throw std::runtime_error("probbase_order needs to have shape (S, C)");
 
     probbase_level = probbase_level_;
 
@@ -166,17 +166,17 @@ Sampler::Sampler(std::vector<int> &int_args, py::array_t<int> subpop_,
     buf_level_values = level_values.request();
     // if (level_values.size() != 15)
     if (buf_level_values.shape[0] != 15)
-	throw std::runtime_error("level_values needs to have 15 elements");
+        throw std::runtime_error("level_values needs to have 15 elements");
 
     buf_count_m = count_m_.request();
     if (buf_count_m.shape[0] != S && buf_count_m.shape[1] != C)
-	throw std::runtime_error("count_m needs to have shape (S, C)");
+        throw std::runtime_error("count_m needs to have shape (S, C)");
     buf_count_m_all = count_m_all_.request();
     if (buf_count_m_all.shape[0] != S && buf_count_m_all.shape[1] != C)
-	throw std::runtime_error("count_m_all needs to have shape (S, C)");
+        throw std::runtime_error("count_m_all needs to have shape (S, C)");
     buf_count_c = count_c_.request();
     if (buf_count_c.shape[0] != C)
-	throw std::runtime_error("count_c needs to have length C");
+        throw std::runtime_error("count_c needs to have length C");
 
     // levelize();
 }
@@ -203,47 +203,47 @@ double Sampler::rgamma(double alpha, double beta) {
 //     int *ptr = (int *) buf_probbase_order.ptr;
 
 //     if (pool < 2) {
-// 	for (int s = 0; s < S; ++s) {
-// 	    for (int c = 0; c < C; ++ c) {
-// 		// get the level of the s-c combination
-// 		int level = (int) ptr[s*C + c];
-// 		// initialize if this cause if needed
-// 		if (probbase_level.find(c) == probbase_level.end()) {
-// 		    probbase_level.insert(
-// 			std::pair<int, inner_map>(c, inner_map()) );
-// 		}
-// 		if (probbase_level[c].find(level) == probbase_level[c].end()) {
-// 		    probbase_level[c].insert(
-// 			std::pair<int, std::vector<int> >(level, std::vector<int>()));
-// 		}
-// 		probbase_level[c][level].push_back(s);
-// 	    }
-// 	}
+//      for (int s = 0; s < S; ++s) {
+//          for (int c = 0; c < C; ++ c) {
+//              // get the level of the s-c combination
+//              int level = (int) ptr[s*C + c];
+//              // initialize if this cause if needed
+//              if (probbase_level.find(c) == probbase_level.end()) {
+//                  probbase_level.insert(
+//                      std::pair<int, inner_map>(c, inner_map()) );
+//              }
+//              if (probbase_level[c].find(level) == probbase_level[c].end()) {
+//                  probbase_level[c].insert(
+//                      std::pair<int, std::vector<int> >(level, std::vector<int>()));
+//              }
+//              probbase_level[c][level].push_back(s);
+//          }
+//      }
 //     } else {
-// 	for (int s = 0; s < S; ++s) {
-// 	    for (int c = 0; c < C; ++ c) {
-// 		// get the level of the s-c combination
-// 		int level = (int) ptr[s*C + c];
-// 		// initialize if this cause if needed
-// 		if (probbase_level.find(s) == probbase_level.end()) {
-// 		    probbase_level.insert(
-// 			std::pair<int, inner_map>(s, inner_map()) );
-// 		}
-// 		if (probbase_level[s].find(level) == probbase_level[s].end()) {
-// 		    probbase_level[s].insert(
-// 			std::pair<int, std::vector<int> >(level, std::vector<int>()));
-// 		}
-// 		probbase_level[s][level].push_back(c);
-// 	    }
-// 	}
+//      for (int s = 0; s < S; ++s) {
+//          for (int c = 0; c < C; ++ c) {
+//              // get the level of the s-c combination
+//              int level = (int) ptr[s*C + c];
+//              // initialize if this cause if needed
+//              if (probbase_level.find(s) == probbase_level.end()) {
+//                  probbase_level.insert(
+//                      std::pair<int, inner_map>(s, inner_map()) );
+//              }
+//              if (probbase_level[s].find(level) == probbase_level[s].end()) {
+//                  probbase_level[s].insert(
+//                      std::pair<int, std::vector<int> >(level, std::vector<int>()));
+//              }
+//              probbase_level[s][level].push_back(c);
+//          }
+//      }
 //     }
 // }
 
 void Sampler::fill_pnb(bool contains_missing,
-		       double *ptr_indic, int *ptr_subpop,
-		       py::array_t<double> & pnb_,
-		       py::array_t<double> & csmf_sub_,
-		       py::array_t<int> & zero_matrix_){
+                       double *ptr_indic, int *ptr_subpop,
+                       py::array_t<double> & pnb_,
+                       py::array_t<double> & csmf_sub_,
+                       py::array_t<int> & zero_matrix_){
     
     // create pointers to get access to Numpy arrays
     auto pnb = pnb_.mutable_unchecked<2>();
@@ -253,29 +253,29 @@ void Sampler::fill_pnb(bool contains_missing,
     // initialize p.nb matrix to p.hat
     
     for (int n = 0; n < N; ++n) {
-	for (int c = 0; c < C; ++c) {
-	    int sub = ptr_subpop[n];
-	    pnb(n, c) = csmf_sub(sub, c) * zero_matrix(n, c);
-	    }
+        for (int c = 0; c < C; ++c) {
+            int sub = ptr_subpop[n];
+            pnb(n, c) = csmf_sub(sub, c) * zero_matrix(n, c);
+        }
     }
     // calculate posterior
     for (int n = 0; n < N; ++n) {
-	// find which symptoms are not missing for this death
-	double row_total = 0.0;
-	std::vector<int> nomissing;
-	for (int s = 0; s < S; ++s) { // this needs indic[n].length?
-	    if (ptr_indic[n*S + s] >= 0) nomissing.push_back(s);
-	}
-	// loop over cause-symptom combination to calculate naive bayes prob
-	// adding in normalization step
-	for (int c = 0; c < C; ++c) {
-	    for (int s : nomissing) {
-		double pb_val = ptr_probbase[s*C + c];
-		pnb(n, c) *= (ptr_indic[n*S + s] > 0) ? pb_val: (1 - pb_val);
-	    }
-	    row_total += pnb(n, c);
-	}
-	for (int c = 0; c < C; ++c) {
+        // find which symptoms are not missing for this death
+        double row_total = 0.0;
+        std::vector<int> nomissing;
+        for (int s = 0; s < S; ++s) { // this needs indic[n].length?
+            if (ptr_indic[n*S + s] >= 0) nomissing.push_back(s);
+        }
+        // loop over cause-symptom combination to calculate naive bayes prob
+        // adding in normalization step
+        for (int c = 0; c < C; ++c) {
+            for (int s : nomissing) {
+                double pb_val = ptr_probbase[s*C + c];
+                pnb(n, c) *= (ptr_indic[n*S + s] > 0) ? pb_val: (1 - pb_val);
+            }
+            row_total += pnb(n, c);
+        }
+        for (int c = 0; c < C; ++c) {
             if (row_total == 0.0) {
                 pnb(n, c) = 0.0;
             } else {
@@ -292,15 +292,15 @@ void Sampler::sample_y(py::array_t<double> & pnb_,
     auto y_new = y_new_.mutable_unchecked<1>();
     //loop over every death
     for (int n = 0; n < (int) pnb.shape(0); ++n){
-	double u = runif();
-	double cum = 0.0;
-	for (int c = 0; c < (int) pnb.shape(1); ++c) {
-	    cum += pnb(n, c);
-	    if (u < cum) {
-		y_new(n) = c;
-		break;
+        double u = runif();
+        double cum = 0.0;
+        for (int c = 0; c < (int) pnb.shape(1); ++c) {
+            cum += pnb(n, c);
+            if (u < cum) {
+                y_new(n) = c;
+                break;
             }
-	}
+        }
     }
 }
 
@@ -423,7 +423,7 @@ double Sampler::sample_trunc_beta(double a_, double b_, double min_, double max_
     double ymax = cdf(beta_dist, max_);
     // handling boundary case
     if (std::abs(ymax - ymin) < 1e-8) {
-	return (max_ + min_) / 2.0;
+        return (max_ + min_) / 2.0;
     }
     double x = runif() * (ymax - ymin) + ymin;
     value = quantile(beta_dist, x);
@@ -431,7 +431,7 @@ double Sampler::sample_trunc_beta(double a_, double b_, double min_, double max_
 }
 
 void Sampler::trunc_beta2(py::array_t<double> prior_a, double prior_b,
-			  double trunc_min, double trunc_max) {
+                          double trunc_min, double trunc_max) {
 
     // typedef std::map< int, std::vector<int> > inner_map;
 
@@ -439,9 +439,9 @@ void Sampler::trunc_beta2(py::array_t<double> prior_a, double prior_b,
     auto proxy_new_pbase = new_probbase.mutable_unchecked<2>();
     auto proxy_prior_a = prior_a.mutable_unchecked<1>();
     for (int s = 0; s < S; ++s) {
-	for (int c = 0; c < C; ++c) {
-	    proxy_new_pbase(s, c) = proxy_pbase(s, c);
-	}
+        for (int c = 0; c < C; ++c) {
+            proxy_new_pbase(s, c) = proxy_pbase(s, c);
+        }
     }
     int *ptr_count_m = (int *) buf_count_m.ptr;            // counts of yes (S*C)
     int *ptr_count_m_all = (int *) buf_count_m_all.ptr;    // counts of yes and no (S*C)
@@ -451,7 +451,7 @@ void Sampler::trunc_beta2(py::array_t<double> prior_a, double prior_b,
     for (int s = 0; s < S; ++s) {
         // find which level-symptom combinations under this cause
         // inner_map levels_under_s = probbase_level[s];
-	py::dict levels_under_s = probbase_level[py::cast(s)];
+        py::dict levels_under_s = probbase_level[py::cast(s)];
         // find the list of all levels present under cause c
 
         std::vector<int> exist_levels_under_s;
@@ -466,7 +466,7 @@ void Sampler::trunc_beta2(py::array_t<double> prior_a, double prior_b,
             int l_current = exist_levels_under_s[index];
         // loop over symptoms s in the level l
             // for (int c : levels_under_s[l_current]) {
-	    py::list levels_under_s_l = levels_under_s[py::cast(l_current)];
+            py::list levels_under_s_l = levels_under_s[py::cast(l_current)];
             for (auto c : levels_under_s_l) {
                 int count = ptr_count_m[s*C + c.cast<int>()];
                 int count_all = ptr_count_m_all[s*C + c.cast<int>()];
@@ -477,7 +477,7 @@ void Sampler::trunc_beta2(py::array_t<double> prior_a, double prior_b,
                     int l_next = exist_levels_under_s[index + 1];
                     // find the max of those symptoms
                     lower = std::numeric_limits<double>::min();
-		    py::list levels_under_s_l_next = levels_under_s[py::cast(l_next)];
+                    py::list levels_under_s_l_next = levels_under_s[py::cast(l_next)];
                     // for (int i : levels_under_s[l_next]) {
                     for (auto i : levels_under_s_l_next) {
                         if (proxy_pbase(s, i.cast<int>()) > lower) lower = proxy_pbase(s, i.cast<int>());
@@ -490,7 +490,7 @@ void Sampler::trunc_beta2(py::array_t<double> prior_a, double prior_b,
                     lower = trunc_min;
                     int l_prev = exist_levels_under_s[index - 1];
                     upper = std::numeric_limits<double>::max();
-		    py::list levels_under_s_l_prev = levels_under_s[py::cast(l_prev)];
+                    py::list levels_under_s_l_prev = levels_under_s[py::cast(l_prev)];
                     // for (int i : levels_under_s[l_prev]) {
                     for (auto i : levels_under_s_l_prev) {
                         if (proxy_new_pbase(s, i.cast<int>()) < upper) upper = proxy_new_pbase(s, i.cast<int>());
@@ -501,7 +501,7 @@ void Sampler::trunc_beta2(py::array_t<double> prior_a, double prior_b,
                     int l_next = exist_levels_under_s[index + 1];
                     lower = std::numeric_limits<double>::min();
                     // for (int i : levels_under_s[l_next]) {
-		    py::list levels_under_s_l_next = levels_under_s[py::cast(l_next)];
+                    py::list levels_under_s_l_next = levels_under_s[py::cast(l_next)];
                     for (auto i : levels_under_s_l_next) {
                         if (proxy_pbase(s, i.cast<int>()) > lower) lower = proxy_pbase(s, i.cast<int>());
                     }
@@ -509,7 +509,7 @@ void Sampler::trunc_beta2(py::array_t<double> prior_a, double prior_b,
                     int l_prev = exist_levels_under_s[index - 1];
                     upper = std::numeric_limits<double>::max();
                     // for (int i : levels_under_s[l_prev]) {
-		    py::list levels_under_s_l_prev = levels_under_s[py::cast(l_prev)];
+                    py::list levels_under_s_l_prev = levels_under_s[py::cast(l_prev)];
                     for (auto i : levels_under_s_l_prev) {
                         if (proxy_new_pbase(s, i.cast<int>()) < upper) upper = proxy_new_pbase(s, i.cast<int>());
                     }
@@ -522,7 +522,7 @@ void Sampler::trunc_beta2(py::array_t<double> prior_a, double prior_b,
                     // find the beta distribution parameters, note level starting from 1
                     a = proxy_prior_a(l_current-1) + count;
                     b = prior_b + count_all - a;
-		    proxy_new_pbase(s, c.cast<int>()) = sample_trunc_beta(a, b, lower, upper);
+                    proxy_new_pbase(s, c.cast<int>()) = sample_trunc_beta(a, b, lower, upper);
                 }
             }
         }
@@ -534,7 +534,7 @@ void Sampler::trunc_beta2(py::array_t<double> prior_a, double prior_b,
 }
 
 void Sampler::trunc_beta(py::array_t<double> prior_a, double prior_b,
-			 double trunc_min, double trunc_max) {
+                         double trunc_min, double trunc_max) {
 
     // typedef std::map< int, std::vector<int> > inner_map;
 
@@ -542,9 +542,9 @@ void Sampler::trunc_beta(py::array_t<double> prior_a, double prior_b,
     auto proxy_new_pbase = new_probbase.mutable_unchecked<2>();
     auto proxy_prior_a = prior_a.mutable_unchecked<1>();
     for (int s = 0; s < S; ++s) {
-	for (int c = 0; c < C; ++c) {
-	    proxy_new_pbase(s, c) = proxy_pbase(s, c);
-	}
+        for (int c = 0; c < C; ++c) {
+            proxy_new_pbase(s, c) = proxy_pbase(s, c);
+        }
     }
     int *ptr_count_m = (int *) buf_count_m.ptr;            // counts of yes (S*C)
     int *ptr_count_m_all = (int *) buf_count_m_all.ptr;    // counts of yes and no (S*C)
@@ -554,12 +554,12 @@ void Sampler::trunc_beta(py::array_t<double> prior_a, double prior_b,
     for (int c = 0; c < C; ++c) {
         // find which level-symptom combinations under this cause
         // inner_map levels_under_c = probbase_level[c];
-	py::dict levels_under_c = probbase_level[py::cast(c)];
+        py::dict levels_under_c = probbase_level[py::cast(c)];
         //find the list of all levels present under cause c
         std::vector<int> exist_levels_under_c;
         for (int l = 1; l <= N_level; ++l) {
             // if (levels_under_c.find(l) != levels_under_c.end()) {
-	    if (levels_under_c.contains(py::cast(l))) {
+            if (levels_under_c.contains(py::cast(l))) {
                 exist_levels_under_c.push_back(l);
             }
         }
@@ -568,7 +568,7 @@ void Sampler::trunc_beta(py::array_t<double> prior_a, double prior_b,
             int l_current = exist_levels_under_c[index];
         // loop over symptoms s in the level l
             // for (int s : levels_under_c[l_current]) {
-	    py::list levels_under_c_l_current = levels_under_c[py::cast(l_current)];
+            py::list levels_under_c_l_current = levels_under_c[py::cast(l_current)];
             for (auto s : levels_under_c_l_current) {
                 int count = ptr_count_m[s.cast<int>()*C + c];
                 int count_all = ptr_count_m_all[s.cast<int>()*C + c];
@@ -580,7 +580,7 @@ void Sampler::trunc_beta(py::array_t<double> prior_a, double prior_b,
                     // find the max of those symptoms
                     lower = std::numeric_limits<double>::min();
                     // for (int i : levels_under_c[l_next]) {
-		    py::list levels_under_c_l_next = levels_under_c[py::cast(l_next)];
+                    py::list levels_under_c_l_next = levels_under_c[py::cast(l_next)];
                     for (auto i : levels_under_c_l_next) {
                         if (proxy_pbase(i.cast<int>(), c) > lower) lower = proxy_pbase(i.cast<int>(), c);
                     }
@@ -593,7 +593,7 @@ void Sampler::trunc_beta(py::array_t<double> prior_a, double prior_b,
                     int l_prev = exist_levels_under_c[index - 1];
                     upper = std::numeric_limits<double>::max();
                     // for (int i : levels_under_c[l_prev]) {
-		    py::list levels_under_c_l_prev = levels_under_c[py::cast(l_prev)];
+                    py::list levels_under_c_l_prev = levels_under_c[py::cast(l_prev)];
                     for (auto i : levels_under_c_l_prev) {
                         if (proxy_new_pbase(i.cast<int>(), c) < upper) upper = proxy_new_pbase(i.cast<int>(), c);
                     }
@@ -603,7 +603,7 @@ void Sampler::trunc_beta(py::array_t<double> prior_a, double prior_b,
                     int l_next = exist_levels_under_c[index + 1];
                     lower = std::numeric_limits<double>::min();
                     // for (int i : levels_under_c[l_next]) {
-		    py::list levels_under_c_l_next = levels_under_c[py::cast(l_next)];
+                    py::list levels_under_c_l_next = levels_under_c[py::cast(l_next)];
                     for (auto i : levels_under_c_l_next) {
                         if (proxy_pbase(i.cast<int>(), c) > lower) lower = proxy_pbase(i.cast<int>(), c);
                     }
@@ -611,7 +611,7 @@ void Sampler::trunc_beta(py::array_t<double> prior_a, double prior_b,
                     int l_prev = exist_levels_under_c[index - 1];
                     upper = std::numeric_limits<double>::max();
                     // for (int i : levels_under_c[l_prev]) {
-		    py::list levels_under_c_l_prev = levels_under_c[py::cast(l_prev)];
+                    py::list levels_under_c_l_prev = levels_under_c[py::cast(l_prev)];
                     for (auto i : levels_under_c_l_prev) {
                         if (proxy_new_pbase(i.cast<int>(), c) < upper) upper = proxy_new_pbase(i.cast<int>(), c);
                     }
@@ -624,7 +624,7 @@ void Sampler::trunc_beta(py::array_t<double> prior_a, double prior_b,
                     // find the beta distribution parameters, note level starting from 1
                     a = proxy_prior_a(l_current-1) + count;
                     b = prior_b + count_all - a;
-		    proxy_new_pbase(s.cast<int>(), c) = sample_trunc_beta(a, b, lower, upper);
+                    proxy_new_pbase(s.cast<int>(), c) = sample_trunc_beta(a, b, lower, upper);
                 }
             }
         }
@@ -636,7 +636,7 @@ void Sampler::trunc_beta(py::array_t<double> prior_a, double prior_b,
 }
 
 void Sampler::trunc_beta_pool(py::array_t<double> prior_a, double prior_b,
-			      double trunc_min, double trunc_max) {
+                              double trunc_min, double trunc_max) {
 
 //    typedef std::map< int, std::vector<int> > inner_map;
 
@@ -651,89 +651,89 @@ void Sampler::trunc_beta_pool(py::array_t<double> prior_a, double prior_b,
     // assume all levels exist in data, if not, need to modify Python codes before calling
     std::vector<double> new_level_values(N_level, 0.0);
     for (int l = 1; l < N_level; ++l) {
-	int count = 0;
-	int count_all = 0;
-	//count appearances
-	for (int c = 0; c < C; ++c) {
-	    // if (probbase_level[c].find(l) != probbase_level[c].end()) {
-	    py::dict level_c = probbase_level[py::cast(c)];
-	    if (level_c.contains(py::cast(l))) {
-		// for (int s : probbase_level[c][l]) {
-		py::list level_c_l = level_c[py::cast(l)];
-		// for (int s : probbase_level[c][l]) {
-		for (auto s : level_c_l) {
-		    count += ptr_count_m[s.cast<int>()*C + c];
-		    count_all += ptr_count_m_all[s.cast<int>()*C + c];
-		}
-	    }
-	}
-	double lower = 0;
-	double upper = 1;
-	// note l starts from 1, level_values have index starting from 0
-	if (l == 1) {
-	    // lower bound is the max of this next level
-	    // lower = std::max(level_values[l], trunc_min);
-	    lower = std::max(ptr_level_values[l], trunc_min);
-	    upper = trunc_max;
-	} else if (l == N_level) {
-	    lower = trunc_min;
-	    // upper bound is the min of previous level
-	    upper = std::min(new_level_values[l-2], trunc_max);
-	} else {
-	    // lower = std::max(level_values[l], trunc_min);
-	    lower = std::max(ptr_level_values[l], trunc_min);
-	    upper = std::min(new_level_values[l-2], trunc_max);
-	}
-	if (lower >= upper) {
-	    new_level_values[l-1] = upper;
-	} else {
-	    a = proxy_prior_a(l-1) + count;
-	    b = prior_b + count_all - a;
-	    new_level_values[l-1] = sample_trunc_beta(a, b, lower, upper);
-	}
+        int count = 0;
+        int count_all = 0;
+        //count appearances
+        for (int c = 0; c < C; ++c) {
+            // if (probbase_level[c].find(l) != probbase_level[c].end()) {
+            py::dict level_c = probbase_level[py::cast(c)];
+            if (level_c.contains(py::cast(l))) {
+                // for (int s : probbase_level[c][l]) {
+                py::list level_c_l = level_c[py::cast(l)];
+                // for (int s : probbase_level[c][l]) {
+                for (auto s : level_c_l) {
+                    count += ptr_count_m[s.cast<int>()*C + c];
+                    count_all += ptr_count_m_all[s.cast<int>()*C + c];
+                }
+            }
+        }
+        double lower = 0;
+        double upper = 1;
+        // note l starts from 1, level_values have index starting from 0
+        if (l == 1) {
+            // lower bound is the max of this next level
+            // lower = std::max(level_values[l], trunc_min);
+            lower = std::max(ptr_level_values[l], trunc_min);
+            upper = trunc_max;
+        } else if (l == N_level) {
+            lower = trunc_min;
+            // upper bound is the min of previous level
+            upper = std::min(new_level_values[l-2], trunc_max);
+        } else {
+            // lower = std::max(level_values[l], trunc_min);
+            lower = std::max(ptr_level_values[l], trunc_min);
+            upper = std::min(new_level_values[l-2], trunc_max);
+        }
+        if (lower >= upper) {
+            new_level_values[l-1] = upper;
+        } else {
+            a = proxy_prior_a(l-1) + count;
+            b = prior_b + count_all - a;
+            new_level_values[l-1] = sample_trunc_beta(a, b, lower, upper);
+        }
     }
     // level_values = new_level_values;
     for (int l = 0; l < N_level; ++l) {
-	ptr_level_values[l] = new_level_values[l];
+        ptr_level_values[l] = new_level_values[l];
     }
     for (int s = 0; s < S; ++s) {
-	for (int c = 0; c < C; ++c) {
-	    int idx = (int) (proxy_pbase_order(s, c) - 1);
-	    proxy_pbase(s, c) = ptr_level_values[idx];
-	}
+        for (int c = 0; c < C; ++c) {
+            int idx = (int) (proxy_pbase_order(s, c) - 1);
+            proxy_pbase(s, c) = ptr_level_values[idx];
+        }
     }
 }
 
 void Sampler::fit(py::array_t<double> prior_a, double prior_b,
-		  double jumprange, double trunc_min,
-		  // double trunc_max, const py::array_t<int> indic,  // assumes numpy.int32
-		  double trunc_max, const py::array_t<double> indic,  // assumes numpy.int32
-		  bool contains_missing, int N_gibbs, int burn,
-		  int thin, py::array_t<double> mu, double sigma2,
-		  bool use_probbase, bool is_added,
-		  const py::array_t<double> mu_continue,
-		  const py::array_t<double> sigma2_continue,
-		  const py::array_t<double> theta_continue,
-		  const py::array_t<int> impossible,
-		  py::array_t<double> & probbase_gibbs_,
-		  py::array_t<double> & levels_gibbs_,
-		  py::array_t<double> & p_gibbs_,
-		  py::array_t<double> & pnb_mean_,
-		  std::vector<int> &n_accept,
-		  py::array_t<double> & mu_now_,
-		  py::array_t<double> & sigma2_now_,
-		  py::array_t<double> & theta_now_,
-		  py::array_t<double> & p_now_,
-		  py::array_t<int> & zero_matrix_,
-		  py::array_t<int> & zero_group_matrix_,
-		  py::array_t<int> & remove_causes_,
-		  py::array_t<double> & pnb_,
-		  py::array_t<double> & y_new_,
-		  py::array_t<double> & y_,
-		  py::array_t<double> & parameters_,
-		  py::dict gui_ctrl,
-		  bool is_openva_app,
-		  py::object openva_app)
+                  double jumprange, double trunc_min,
+                  // double trunc_max, const py::array_t<int> indic,  // assumes numpy.int32
+                  double trunc_max, const py::array_t<double> indic,  // assumes numpy.int32
+                  bool contains_missing, int N_gibbs, int burn,
+                  int thin, py::array_t<double> mu, double sigma2,
+                  bool use_probbase, bool is_added,
+                  const py::array_t<double> mu_continue,
+                  const py::array_t<double> sigma2_continue,
+                  const py::array_t<double> theta_continue,
+                  const py::array_t<int> impossible,
+                  py::array_t<double> & probbase_gibbs_,
+                  py::array_t<double> & levels_gibbs_,
+                  py::array_t<double> & p_gibbs_,
+                  py::array_t<double> & pnb_mean_,
+                  std::vector<int> &n_accept,
+                  py::array_t<double> & mu_now_,
+                  py::array_t<double> & sigma2_now_,
+                  py::array_t<double> & theta_now_,
+                  py::array_t<double> & p_now_,
+                  py::array_t<int> & zero_matrix_,
+                  py::array_t<int> & zero_group_matrix_,
+                  py::array_t<int> & remove_causes_,
+                  py::array_t<double> & pnb_,
+                  py::array_t<double> & y_new_,
+                  py::array_t<double> & y_,
+                  py::array_t<double> & parameters_,
+                  py::dict gui_ctrl,
+                  bool is_openva_app,
+                  py::object openva_app)
 {
        
     double d;
@@ -741,28 +741,28 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
     int *ptr_subpop = (int *) buf_subpop.ptr;
     py::buffer_info buf_indic = indic.request();  // these are ints, but not treated as such in Python -- need np.int32
     if (buf_indic.shape[0] != N && buf_indic.shape[1] != S)
-	throw std::runtime_error("indic needs to have shape (N, S)");
+        throw std::runtime_error("indic needs to have shape (N, S)");
     double *ptr_indic = (double *) buf_indic.ptr;
     py::buffer_info buf_mu = mu.request();
     if (buf_mu.shape[0] != C)
-	throw std::runtime_error("mu needs to have shape (C,)");
+        throw std::runtime_error("mu needs to have shape (C,)");
     double *ptr_mu = (double *) buf_mu.ptr;
     py::buffer_info buf_mu_cont = mu_continue.request();
     if (buf_mu_cont.shape[0] != N_sub && buf_mu_cont.shape[1] != C)
-	throw std::runtime_error("mu_continue needs to have shape (N_sub, C)");
+        throw std::runtime_error("mu_continue needs to have shape (N_sub, C)");
     double *ptr_mu_cont = (double *) buf_mu_cont.ptr;
     py::buffer_info buf_sigma2_cont = sigma2_continue.request();
     if (buf_sigma2_cont.shape[0] != N_sub)
-	throw std::runtime_error("sigma2_cont needs to have shape (N_sub,)");
+        throw std::runtime_error("sigma2_cont needs to have shape (N_sub,)");
     double *ptr_sigma2_cont = (double *) buf_sigma2_cont.ptr;    
     py::buffer_info buf_theta_cont = theta_continue.request();
     if (buf_theta_cont.shape[0] != N_sub && buf_theta_cont.shape[1] != C)
-	throw std::runtime_error("theta_continue needs to have shape (N_sub, C)");
+        throw std::runtime_error("theta_continue needs to have shape (N_sub, C)");
     double *ptr_theta_cont = (double *) buf_theta_cont.ptr;
     py::buffer_info buf_impossible = impossible.request();
     // this shape depends arguements for impossible causes
     // if (buf_impossible.shape[0] && buf_theta_cont.shape[1] != C)
-    // 	throw std::runtime_error("theta_continue needs to have shape (N_sub, C)");
+    //  throw std::runtime_error("theta_continue needs to have shape (N_sub, C)");
     int *ptr_impossible = (int *) buf_impossible.ptr;
     double *ptr_probbase = (double *) buf_probbase.ptr;
     double *ptr_level_values = (double *) buf_level_values.ptr;
@@ -770,7 +770,9 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
     size_t size_n_sub = buf_mu_cont.shape[0];
     size_t size_c = buf_mu_cont.shape[1];
 
-    py::print("InSilicoVA Sampler Initiated, ", N_gibbs, " Iterations to Sample\n");
+    if (is_openva_app == false) {
+        py::print("InSilicoVA Sampler Initiated, ", N_gibbs, " Iterations to Sample\n");
+    }
     int N_thin = (int) ((N_gibbs - burn) / (thin));
     int n_report = std::max(N_gibbs/20, 100);
     if (N_gibbs < 200) n_report = 50;
@@ -802,43 +804,43 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
     auto y = y_.mutable_unchecked<2>();
 
     if (!is_added) {
-	for (size_t sub = 0; sub < size_n_sub; ++sub) {
-	    for (size_t i = 0; i < size_c; ++i) {
-		mu_now(sub, i) = ptr_mu[i];
-		theta_now(sub, i) = 1.0;
-	    }
-	    sigma2_now(sub) = sigma2;
+        for (size_t sub = 0; sub < size_n_sub; ++sub) {
+            for (size_t i = 0; i < size_c; ++i) {
+                mu_now(sub, i) = ptr_mu[i];
+                theta_now(sub, i) = 1.0;
+            }
+            sigma2_now(sub) = sigma2;
 
-	    double expsum = exp(1.0);
-	    for (int c = 1; c < C; ++c) {
-		d = runif();
-		theta_now(sub, c) = log(d * 100);
-		expsum += exp(theta_now(sub, c));
-	    }
-	    for (int c = 0; c < C; ++c) {
-		p_now(sub, c) = exp(theta_now(sub, c)) / expsum;
-	    }
-	}
+            double expsum = exp(1.0);
+            for (int c = 1; c < C; ++c) {
+                d = runif();
+                theta_now(sub, c) = log(d * 100);
+                expsum += exp(theta_now(sub, c));
+            }
+            for (int c = 0; c < C; ++c) {
+                p_now(sub, c) = exp(theta_now(sub, c)) / expsum;
+            }
+        }
     } else {
-	// py::print("Made it to 2nd run of sampler");
-	for (size_t sub = 0; sub < size_n_sub; ++sub) {
-	    for (size_t i = 0; i < size_c; ++i) {
-		mu_now(sub, i) = ptr_mu_cont[sub * size_c + i];
-		theta_now(sub, i) = ptr_theta_cont[sub * size_c + i];
-	    }
-	    sigma2_now(sub) = ptr_sigma2_cont[sub];
-	    // py::print("sigma2_now(sub): ", sigma2_now(sub));
+        // py::print("Made it to 2nd run of sampler");
+        for (size_t sub = 0; sub < size_n_sub; ++sub) {
+            for (size_t i = 0; i < size_c; ++i) {
+                mu_now(sub, i) = ptr_mu_cont[sub * size_c + i];
+                theta_now(sub, i) = ptr_theta_cont[sub * size_c + i];
+            }
+            sigma2_now(sub) = ptr_sigma2_cont[sub];
+            // py::print("sigma2_now(sub): ", sigma2_now(sub));
 
-	    // recalculate p from theta
-	    double expsum = exp(1.0);
-	    for (int c = 1; c < C; ++c) {
-		expsum += exp(theta_now(sub, c));
-	    }
-	    for (int c = 0; c < C; ++c) {
-		p_now(sub, c) = exp(theta_now(sub, c)) / expsum;
-	    }
-	}
-	// py::print("p_now(0, 0): ", p_now(0, 0));
+            // recalculate p from theta
+            double expsum = exp(1.0);
+            for (int c = 1; c < C; ++c) {
+                expsum += exp(theta_now(sub, c));
+            }
+            for (int c = 0; c < C; ++c) {
+                p_now(sub, c) = exp(theta_now(sub, c)) / expsum;
+            }
+        }
+        // py::print("p_now(0, 0): ", p_now(0, 0));
     }
 
     // check impossible causes?
@@ -847,72 +849,72 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
     bool check_impossible = (ncol_impossible == 3);
 
     for (int i=0; i<N; ++i) {
-	for (int j=0; j<C; j++) {
-	    zero_matrix(i, j) = 1;
-	}
+        for (int j=0; j<C; j++) {
+            zero_matrix(i, j) = 1;
+        }
     }
 
     // indic is (N, S)
     if (check_impossible) {
-    	for (int i = 0; i < N; ++i) {
-    	    for (int k = 0; k < nrow_impossible; ++k) {
-    		int index = k * ncol_impossible;
-    		int imp_col0 = ptr_impossible[index];
-    		int imp_col1 = ptr_impossible[index + 1];
-    		int imp_col2 = ptr_impossible[index + 2];
-    		if ((ptr_indic[i*S + imp_col1] == 1) & (imp_col2 == 0)) {
-    		    zero_matrix(i, imp_col0) = 0;
-    		}
-    		if ((ptr_indic[i*S + imp_col1] == 0) & (imp_col2 == 1)) {
-    		    zero_matrix(i, imp_col0) = 0;
-    		}
-    	    }
-    	}
+        for (int i = 0; i < N; ++i) {
+            for (int k = 0; k < nrow_impossible; ++k) {
+                int index = k * ncol_impossible;
+                int imp_col0 = ptr_impossible[index];
+                int imp_col1 = ptr_impossible[index + 1];
+                int imp_col2 = ptr_impossible[index + 2];
+                if ((ptr_indic[i*S + imp_col1] == 1) & (imp_col2 == 0)) {
+                    zero_matrix(i, imp_col0) = 0;
+                }
+                if ((ptr_indic[i*S + imp_col1] == 0) & (imp_col2 == 1)) {
+                    zero_matrix(i, imp_col0) = 0;
+                }
+            }
+        }
     }
     // check if specific causes are impossible for a whole subpopulation
     if (check_impossible) {
-    	for (int j = 0; j < C; ++j) {
-    	    for (int i = 0; i < N; ++i) {
-    		zero_group_matrix(ptr_subpop[i], j) += zero_matrix(i, j);
-    	    }
-    	}
-    	for (int j = 0; j < C; ++j) {
-    	    for (int i = 0; i < N_sub; ++i) {
-    		if (zero_group_matrix(i, j) != 0)
-    		    zero_group_matrix(i, j) = 1;
-    		remove_causes(i) += 1 - zero_group_matrix(i, j);
-    	    }
-    	}
+        for (int j = 0; j < C; ++j) {
+            for (int i = 0; i < N; ++i) {
+                zero_group_matrix(ptr_subpop[i], j) += zero_matrix(i, j);
+            }
+        }
+        for (int j = 0; j < C; ++j) {
+            for (int i = 0; i < N_sub; ++i) {
+                if (zero_group_matrix(i, j) != 0)
+                    zero_group_matrix(i, j) = 1;
+                remove_causes(i) += 1 - zero_group_matrix(i, j);
+            }
+        }
     } else {
-    	for (int i = 0; i < N_sub; ++i) {
-    	    for (int j = 0; j < C; ++j) {
-    		zero_group_matrix(i, j) = 1;
-    	    }
-    	}	
+        for (int i = 0; i < N_sub; ++i) {
+            for (int j = 0; j < C; ++j) {
+                zero_group_matrix(i, j) = 1;
+            }
+        }       
     }
 
     // reinitiate after checking impossible
     if (!is_added) {
-    	for (int sub = 0; sub < N_sub; ++sub) {
-    	    int fix = 0;
-    	    for (int c = 1; c < C; ++c) {
-    		if (zero_group_matrix(sub, c) > 0) {
-    		    fix = c;
-    		    break;
-    		}
-    	    }
-    	    theta_now(sub, fix) = 1.0;
-    	    double expsum = exp(1.0);
-    	    for (int c = (fix + 1); c < C; ++c) {
-    		d = runif() * 100;
-    		theta_now(sub, c) = log(d);
-    		expsum += exp(theta_now(sub, c)) * zero_group_matrix(sub, c);
-    	    }
-    	    for (int c = 0; c < C; ++c) {
-    		p_now(sub, c) = exp(theta_now(sub, c)) *
-    		    zero_group_matrix(sub, c) / expsum;
-    	    }
-    	}
+        for (int sub = 0; sub < N_sub; ++sub) {
+            int fix = 0;
+            for (int c = 1; c < C; ++c) {
+                if (zero_group_matrix(sub, c) > 0) {
+                    fix = c;
+                    break;
+                }
+            }
+            theta_now(sub, fix) = 1.0;
+            double expsum = exp(1.0);
+            for (int c = (fix + 1); c < C; ++c) {
+                d = runif() * 100;
+                theta_now(sub, c) = log(d);
+                expsum += exp(theta_now(sub, c)) * zero_group_matrix(sub, c);
+            }
+            for (int c = 0; c < C; ++c) {
+                p_now(sub, c) = exp(theta_now(sub, c)) *
+                    zero_group_matrix(sub, c) / expsum;
+            }
+        }
     }
 
     // first time pnb (naive bayes probability) calculation
@@ -926,14 +928,14 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
         early_stop = gui_ctrl[py::cast(key)].cast<bool>();
         if (early_stop) break;
 
-	// sample new y vector
+        // sample new y vector
         sample_y(pnb_, y_new_);
 
         // count the appearance of each cause
-	for (int sub = 0; sub < N_sub; ++sub) {
-	    for (int c = 0; c < C; ++c) {
-		y(sub, c) = 0;
-	    }
+        for (int sub = 0; sub < N_sub; ++sub) {
+            for (int c = 0; c < C; ++c) {
+                y(sub, c) = 0;
+            }
         }
         for (int n = 0; n < N; ++n) {
             y(ptr_subpop[n], ptr_y_new[n]) += 1;
@@ -1000,10 +1002,10 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
         fill_pnb(true, ptr_indic, ptr_subpop, pnb_, p_now_, zero_matrix_);
 
         // format output message
-        if (k % 10 == 0) {
+        if ((k % 10 == 0) & (is_openva_app == false)) {
             py::print(".", "end"_a="", "flush"_a=true);
         }
-        if ( (k % n_report == 0) & (k != 0) ) {
+        if ( (k % n_report == 0) & (k != 0) & (is_openva_app == false)) {
             std::string message = "\nIteration: " + std::to_string(k) + " \n";
             for (int sub = 0; sub < N_sub; ++sub) {
                 double ratio = std::ceil(100.0 * n_accept[sub] / (k + 0.0)) / 100.0;
@@ -1019,48 +1021,51 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
             double t2 = t1/(k + 0.0) * (N_gibbs - k);
             t1 = std::ceil(t1 * 100.0) / 100.0;
             t2 = std::ceil(t2 * 100.0) / 100.0;
+            
             py::print(t1, "min elapsed, ", t2, "min remaining", '\n');
         }
-        if (is_openva_app) {
-            progress = int(100*k / (N_gibbs + 1));
+        if ((k % 10 == 0) & is_openva_app) {
+            progress = 100 * (k + 1) / N_gibbs;
             openva_app.attr("emit")(progress);
         }
 
-	// note this condition includes the first iteration
-	if ( (k >= burn) & ((k - burn + 1) % thin == 0) ) {
-	    int save = ((int) ((k - burn + 1)/thin)) - 1;
-	    for (int d1 = 0; d1 < N; ++d1) {
-		for (int d2 = 0; d2 < C; ++d2) {
-		    pnb_mean(d1, d2) += pnb(d1, d2);
-		}
-	    }
-	    for (int d1 = 0; d1 < N_sub; ++d1) {
-		for (int d2 = 0; d2 < C; ++d2) {
-		    p_gibbs(save, d1, d2) = p_now(d1, d2);
-		}
-	    }
-	    if (pool == 0) {
-		for (int d1 = 0; d1 < N_level; ++d1) {
-		    // levels_gibbs(save, d1) = level_values[d1];
-		    levels_gibbs(save, d1) = ptr_level_values[d1];
-		}
-	    } else {
-		for (int d1 = 0; d1 < S; ++d1) {
-		    for (int d2 = 0; d2 < C; ++d2) {
-			int idx = d1*C + d2;
-			probbase_gibbs(save, d1, d2) = ptr_probbase[idx];
-		    }
-		}
-	    }
-	}
+        // note this condition includes the first iteration
+        if ( (k >= burn) & ((k - burn + 1) % thin == 0) ) {
+            int save = ((int) ((k - burn + 1)/thin)) - 1;
+            for (int d1 = 0; d1 < N; ++d1) {
+                for (int d2 = 0; d2 < C; ++d2) {
+                    pnb_mean(d1, d2) += pnb(d1, d2);
+                }
+            }
+            for (int d1 = 0; d1 < N_sub; ++d1) {
+                for (int d2 = 0; d2 < C; ++d2) {
+                    p_gibbs(save, d1, d2) = p_now(d1, d2);
+                }
+            }
+            if (pool == 0) {
+                for (int d1 = 0; d1 < N_level; ++d1) {
+                    // levels_gibbs(save, d1) = level_values[d1];
+                    levels_gibbs(save, d1) = ptr_level_values[d1];
+                }
+            } else {
+                for (int d1 = 0; d1 < S; ++d1) {
+                    for (int d2 = 0; d2 < C; ++d2) {
+                        int idx = d1*C + d2;
+                        probbase_gibbs(save, d1, d2) = ptr_probbase[idx];
+                    }
+                }
+            }
+        }
     }
-    py::print("\nOverall acceptance ratio");
-    for (int sub = 0; sub < N_sub; ++sub) {
-	double ratio = std::ceil(100.0 * n_accept[sub] / (N_gibbs + 0.0)) / 100.0;
-	py::print("Sub-population ", sub, ": ", ratio);
+    if (is_openva_app == false) {
+        py::print("\nOverall acceptance ratio");
+        for (int sub = 0; sub < N_sub; ++sub) {
+            double ratio = std::ceil(100.0 * n_accept[sub] / (N_gibbs + 0.0)) / 100.0;
+            py::print("Sub-population ", sub, ": ", ratio);
+	}
+	py::print("Organizing output, might take a moment...");
     }
     // The outcome is vector of
-    py::print("Organizing output, might take a moment...");
     //  0. scalar of N_thin
     //	1. CSMF at each iteration N_sub * C * N_thin
     //  2. Individual prob mean N * C
@@ -1081,61 +1086,61 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
     counter = 1;
     // save p_gibbs
     for (int sub = 0; sub < N_sub; ++sub) {
-	for (int k = 0; k < N_thin; ++k) {
-	    for (int c = 0; c < C; ++c) {
-		parameters(counter) = p_gibbs(k, sub, c);
-		counter += 1;
-	    }
-	}
+        for (int k = 0; k < N_thin; ++k) {
+            for (int c = 0; c < C; ++c) {
+                parameters(counter) = p_gibbs(k, sub, c);
+                counter += 1;
+            }
+        }
     }
     // save pnb_gibbs, need normalize here
     for (int n = 0; n < N; ++n) {
-	for (int c = 0; c < C; ++c) {
-	    parameters(counter) = pnb_mean(n, c) / (N_thin + 0.0);
-	    counter += 1;
-	}
+        for (int c = 0; c < C; ++c) {
+            parameters(counter) = pnb_mean(n, c) / (N_thin + 0.0);
+            counter += 1;
+        }
     }
     // save probbase at each iteration
     if (pool != 0) {
-	for (int c = 0; c < C; ++c) {
-	    for (int s = 0; s < S; ++s) {
-		for (int k = 0; k < N_thin; ++k) {
-		    parameters(counter) = probbase_gibbs(k, s, c);
-		    counter += 1;
-		}
-	    }
-	}
+        for (int c = 0; c < C; ++c) {
+            for (int s = 0; s < S; ++s) {
+                for (int k = 0; k < N_thin; ++k) {
+                    parameters(counter) = probbase_gibbs(k, s, c);
+                    counter += 1;
+                }
+            }
+        }
     } else {
-	for (int k = 0; k < N_thin; ++k) {
-	    // for (int l = 1; l <= N_level; ++l) {
-		// parameters(counter) = levels_gibbs(k, l-1);
-	    for (int l = 0; l < N_level; ++l) {
-		parameters(counter) = levels_gibbs(k, l);
-		counter += 1;
-	    }
-	}
+        for (int k = 0; k < N_thin; ++k) {
+            // for (int l = 1; l <= N_level; ++l) {
+            // parameters(counter) = levels_gibbs(k, l-1);
+            for (int l = 0; l < N_level; ++l) {
+                parameters(counter) = levels_gibbs(k, l);
+                counter += 1;
+            }
+        }
     }
 
     // save output without N_thin rows
     // only using the first row
     // save mu_now
     for (int sub = 0; sub < N_sub; ++sub) {
-	for (int c = 0; c < C; ++c) {
-	    parameters(counter) = mu_now(sub, c);
-	    counter += 1;
-	}
+        for (int c = 0; c < C; ++c) {
+            parameters(counter) = mu_now(sub, c);
+            counter += 1;
+        }
     }
     // save sigma2_now
     for (int sub = 0; sub < N_sub; ++sub) {
-	parameters(counter) = sigma2_now(sub);
-	counter += 1;
+        parameters(counter) = sigma2_now(sub);
+        counter += 1;
     }
     // save theta_now
     for (int sub = 0; sub < N_sub; ++sub) {
-	for (int c = 0; c < C; ++c) {
-	    parameters(counter) = theta_now(sub, c);
-	    counter += 1;
-	}
+        for (int c = 0; c < C; ++c) {
+            parameters(counter) = theta_now(sub, c);
+            counter += 1;
+        }
     }
 }
 
@@ -1154,11 +1159,11 @@ PYBIND11_MODULE(_sampler, m) {
     )pbdoc";
 
     py::class_<Sampler>(m, "Sampler")
-	.def(py::init<std::vector<int> &, py::array_t<int>,
-	     py::array_t<double>, py::array_t<int>,
-	     py::dict,
-	     py::array_t<double>,
-	     py::array_t<int> &, py::array_t<int> &,
-	     py::array_t<int> & >())
-	.def("fit", &Sampler::fit);
+        .def(py::init<std::vector<int> &, py::array_t<int>,
+             py::array_t<double>, py::array_t<int>,
+             py::dict,
+             py::array_t<double>,
+             py::array_t<int> &, py::array_t<int> &,
+             py::array_t<int> & >())
+        .def("fit", &Sampler::fit);
 }

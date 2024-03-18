@@ -47,6 +47,9 @@ dependencies = [
 "Homepage" = "https://github.com/verbal-autopsy-software/pyinsilicova"
 "Bug Tracker" = "https://github.com/verbal-autopsy-software/pyinsilicoVA/issues"
 
+[tool.setuptools]
+packages = ["insilicova", "insilicova._sampler"]
+
 [tool.setuptools.package-data]
 "insilicova.data" = ["*.csv"]
 

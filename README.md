@@ -5,6 +5,10 @@
 
 Python implementation of the InSilicoVA algorithm for assigning causes of death to verbal autopsy data.
 
+This version depends on the C++ library boost [https://www.boost.org/](https://www.boost.org/) and the Python package
+pyind ([pybind11 docs](https://pybind11.readthedocs.io/en/latest/)).  To build the package, run `python -m build`.
+For windows, the path to the boost library must be added to a System environment variable INCLUDE.
+
 
 Example run:
 

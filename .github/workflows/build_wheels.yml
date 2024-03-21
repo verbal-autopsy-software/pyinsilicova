@@ -1,6 +1,10 @@
 name: Build
 
-on: [workflow_dispatch]
+on:
+  push:
+    branches:
+      - cpp
+  workflow_dispatch:
 
 jobs:
   build_wheels:
@@ -10,9 +14,9 @@ jobs:
       matrix:
         # macos-13 is an intel runner, macos-14 is apple silicon
         os: [ubuntu-latest, windows-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
 
     steps:
+      - name: Check out repository
       - uses: actions/checkout@v4
       - name: Install dependencies for Linux
         if: runner.os == 'Linux'
@@ -24,10 +28,14 @@ jobs:
         run: |
           Invoke-WebRequest -Uri  https://boostorg.jfrog.io/artifactory/main/release/1.82.0/source/boost_1_82_0.zip -OutFile C:\boost_1_82_0.zip
           Expand-Archive C:\boost_1_82_0.zip -DestinationPath C:\boost_1_82_0
+      - name: Install Python 3.x
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.17.0
-        # env:
-        #   CIBW_SOME_OPTION: value
+        env:
+          BUILD_EXTENSION: yes
         #    ...
         # with:
         #   package-dir: .

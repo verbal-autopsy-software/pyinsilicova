@@ -1,10 +1,10 @@
 name: Build wheels
 
-on:
-  push:
-    branches:
-      - cpp
-  workflow_dispatch:
+on: [workflow_dispatch]
+  # push:
+  #   branches:
+  #     - cpp
+  # workflow_dispatch:
 
 jobs:
   build_wheels:
@@ -18,20 +18,16 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      - name: Install dependencies for Linux
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install libboost-all-dev
+      # - name: Install dependencies for Linux
+      #   if: runner.os == 'Linux'
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install libboost-all-dev
       - name: Install dependencies for Windows
         if: runner.os == 'Windows'
         run: |
           Invoke-WebRequest -Uri  https://boostorg.jfrog.io/artifactory/main/release/1.82.0/source/boost_1_82_0.zip -OutFile C:\boost_1_82_0.zip
           Expand-Archive C:\boost_1_82_0.zip -DestinationPath C:\boost_1_82_0
-      - name: Install Python 3.x
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.17.0
         env:
@@ -41,6 +37,10 @@ jobs:
         #   package-dir: .
         #   output-dir: wheelhouse
         #   config-file: "{package}/pyproject.toml"
+          CIBW_BEFORE_ALL_LINUX: >
+            sudo apt-get update && sudo apt-get -y install libboost-all-dev
+          CIBW_ENVIRONMENT_LINUX: BOOST_ROOT=/boost
+          CIBW_ENVIRONMENT_PASS_LINUX: BOOST_ROOT
 
       - uses: actions/upload-artifact@v4
         with:

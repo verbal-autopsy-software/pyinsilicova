@@ -1,11 +1,10 @@
-name: Build
+name: Build wheels
 
-#on:
+on: [workflow_dispatch]
   # push:
   #   branches:
   #     - cpp
   # workflow_dispatch
-on: workflow_dispatch
 
 jobs:
   build_wheels:

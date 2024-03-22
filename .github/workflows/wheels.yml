@@ -22,8 +22,7 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           Invoke-WebRequest -Uri  https://boostorg.jfrog.io/artifactory/main/release/1.82.0/source/boost_1_82_0.zip -OutFile C:\boost_1_82_0.zip
-          7z x -oC:\boost_1_82_0 C:\boost_1_82_0.zip
-          # echo "INCLUDE=C:\boost_1_82_0" >> $env:GITHUB_ENV
+          7z x -oC:\ C:\boost_1_82_0.zip
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.17.0
         env:

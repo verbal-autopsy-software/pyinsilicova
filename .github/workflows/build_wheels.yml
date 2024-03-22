@@ -18,17 +18,18 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      # - name: Install dependencies for Windows
-      #   if: runner.os == 'Windows'
-      #   run: |
-      #     Invoke-WebRequest -Uri  https://boostorg.jfrog.io/artifactory/main/release/1.82.0/source/boost_1_82_0.zip -OutFile C:\boost_1_82_0.zip
-      #     Expand-Archive C:\boost_1_82_0.zip -DestinationPath C:\boost_1_82_0
+      - name: Install dependencies for Windows
+        if: runner.os == 'Windows'
+        run: |
+          Invoke-WebRequest -Uri  https://boostorg.jfrog.io/artifactory/main/release/1.82.0/source/boost_1_82_0.zip -OutFile C:\boost_1_82_0.zip
+          7z x -oC:\boost_1_82_0 C:\boost_1_82_0.zip
+          echo "INCLUDE=C:\boost_1_82_0" >> $env:GITHUB_ENV
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.17.0
         env:
           BUILD_EXTENSION: yes
+          CIBW_SKIP: "pp* *-win32 *-musllinux_x86_64 *_i686"
           CIBW_BEFORE_ALL_LINUX: yum install -y boost-devel
-          CIBW_BEFORE_BUILD_WINDOWS: choco install boost-msvc-14.1
       - uses: actions/upload-artifact@v4
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}

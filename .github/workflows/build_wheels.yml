@@ -1,6 +1,6 @@
 name: Build wheels
 
-on: [workflow_distpach]
+on: [workflow_dispatch]
   # push:
   #   branches:
   #     - cpp

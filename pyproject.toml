@@ -13,7 +13,7 @@ build-requires = [
 
 [project]
 name = "insilicova"
-version = "0.0.3"
+version = "0.1.0"
 authors = [
     {name = "Jason Thomas", email = "jarathomas@gmail.com"},
     {name = "Sherry Zhao", email =" zhao.3248@buckeyemail.osu.edu"},
@@ -32,6 +32,7 @@ classifiers=[
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: OS Independent",
 ]

@@ -7,7 +7,7 @@ if platform.system() == "Windows":
         Pybind11Extension(
             "insilicova._sampler._sampler",
             ["src/insilicova/_sampler/sampler.cpp"],
-            include_dirs=["C:\\boost_1_82_0"],
+            include_dirs=["C:\\Program Files\\boost\\boost_1_82_0"],
         ),
     ]
 else:

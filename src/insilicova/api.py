@@ -11,7 +11,7 @@ from __future__ import annotations
 from .exceptions import (ArgumentException, DataException, HaltGUIException,
                          InSilicoVAException)
 from .utils import get_vadata
-from .sampler import Sampler
+from ._sampler._sampler import Sampler
 from .diag import csmf_diag
 from .structures import InSilico, InSilicoAllExt
 from typing import Union, Dict, TYPE_CHECKING
@@ -303,7 +303,8 @@ class InSilicoVA:
                 self.data[i] = self.data[i].astype("string")
                 if self.subpop is not None and i in self.subpop:
                     continue
-                self.data[i].fillna(".", inplace=True)
+                # self.data[i].fillna(".", inplace=True)
+                self.data[i] = self.data[i].fillna(".")
                 if "" in self.data[i].values:
                     raise DataException(
                         "Wrong format: WHO 2016 input uses 'N' to denote "
@@ -1224,6 +1225,49 @@ class InSilicoVA:
         self._theta_last = np.zeros(
             shape=(self._n_sub, self._cond_prob_true.shape[1]))
 
+    # function to summarize the current levels of probbase
+    def _levelize(self, pool: int) -> dict:
+        S = self.data.shape[1] - 1
+        C = self._cond_prob_true.shape[1]
+        probbase_order = self._prob_order.copy()
+        probbase_level = {}
+        # if pool = 0, doesn't matter which
+        # if pool = 1, count level by cause
+        if pool == 0 or pool == 1:
+            # loop over all s and c combinations
+            for s in range(S):
+                for c in range(C):
+                    # get level of this s-c combination
+                    level = int(probbase_order[s, c])
+                    # initialize if this cause has not been intialized in probbase_level yet
+                    if c not in probbase_level:
+                        # self.probbase_level[c] = dict of K-int and V-list of int
+                        probbase_level[c] = {}
+                        # initialize if this level under this cause has not been initialized
+                    if level not in probbase_level[c]:
+                        # self.probbase_level[c][level] = list of int
+                        probbase_level[c][level] = []
+                        # save the cause-level-symptom combination
+                    probbase_level[c][level].append(s)
+        # if pool = 2, count level by symptom
+        elif pool == 2:
+            # loop over all s and c combinations
+            for s in range(S):
+                for c in range(C):
+                    # get level of this s-c combination
+                    level = int(probbase_order[s, c])
+                    # initialize if this cause has not been initialized in probbase_level yet
+                    if s not in probbase_level:
+                        # self.probbase_level[s] = dict with K-int and V-list of int
+                        probbase_level[s] = {}
+                    # initialize if this level under this cause has not been initialized
+                    if level not in probbase_level[s]:
+                        # self.probbase_level[s][level] = list of int
+                        probbase_level[s][level] = []
+                    # save the cause-level-symptom combination
+                    probbase_level[s][level].append(c)
+        return probbase_level
+
     def _sample_posterior(self):
         N = self.data.shape[0]
         S = self.data.shape[1] - 1
@@ -1232,15 +1276,26 @@ class InSilicoVA:
         N_sub = self._n_sub
         N_level = sum(self._level_exist)
         subpop = self._subpop_numeric.copy()
+        subpop = subpop.astype(np.int32)
         probbase = self._cond_prob.copy()
         probbase_order = self._prob_order.copy()
-        level_values = self._dist.tolist()
+        probbase_order = probbase_order.astype(np.int32)
+        level_values = self._dist.copy()
         pool = int(not self.keep_probbase_level + self._probbase_by_symp_dev)
-        sampler = Sampler(N=N, S=S, C=C, N_sub=N_sub, N_level=N_level,
-                          subpop=subpop, probbase=probbase,
-                          probbase_order=probbase_order,
-                          level_values=level_values, pool=pool,
-                          gui_ctrl=self.gui_ctrl)
+        dim_args = [N, S, C, N_sub, N_level, pool, self.seed]
+        count_m = np.zeros((S, C), dtype=np.int32)
+        count_m_all = np.zeros((S, C), dtype=np.int32)
+        count_c = np.zeros(C, dtype=np.int32)
+        probbase_level = self._levelize(pool)
+        sampler = Sampler(dim_args,
+                          subpop,
+                          probbase,
+                          probbase_order,
+                          probbase_level,
+                          level_values,
+                          count_m,
+                          count_m_all,
+                          count_c)
         dimensions = [N, S, C, N_sub, N_level]
         prior_a = self.levels_prior.copy()
         prior_b = self._prior_b_cond
@@ -1248,16 +1303,15 @@ class InSilicoVA:
         trunc_min = self.trunc_min
         trunc_max = self.trunc_max
         indic = self._indic.copy()
-        contains_missing = self._contains_missing
-        seed = self.seed
+        contains_missing = bool(self._contains_missing)
         N_gibbs = self._n_gibbs
         burn = self.burnin
         thin = self.thin
         mu = self._mu
         sigma2 = self._sigma2
-        this_is_Unix = not system() == "Windows"
-        useProbbase = self._keep_prob
-        isAdded = False
+        # this_is_Unix = not system() == "Windows"
+        use_probbase = self._keep_prob
+        is_added = False
         mu_continue = self._mu_last
         sigma2_continue = self._sigma2_last
         theta_continue = self._theta_last
@@ -1265,27 +1319,58 @@ class InSilicoVA:
         broader = self._va_causes_broader
         assignment = self._assignment
         impossible = self._impossible
-        fit = sampler.fit(dimensions=dimensions,
-                          probbase=self._cond_prob.copy(),
-                          probbase_order=self._prob_order.copy(),
-                          level_values=level_values, prior_a=prior_a,
-                          prior_b=prior_b, jumprange=jumprange,
-                          trunc_min=trunc_min, trunc_max=trunc_max,
-                          indic=indic, subpop=subpop,
-                          contains_missing=contains_missing, pool=pool,
-                          seed=seed, N_gibbs=N_gibbs, burn=burn,
-                          thin=thin, mu=mu, sigma2=sigma2,
-                          this_is_Unix=this_is_Unix,
-                          useProbbase=useProbbase, isAdded=isAdded,
-                          mu_continue=mu_continue,
-                          sigma2_continue=sigma2_continue,
-                          theta_continue=theta_continue, C_phy=C_phy,
-                          broader=broader, assignment=assignment,
-                          impossible=impossible,
-                          openva_app=self.openva_app)
-
+        N_thin = int((N_gibbs - burn) / (thin))
+        probbase_gibbs = np.zeros((N_thin, S, C))
+        levels_gibbs = np.zeros((N_thin, N_level))
+        pnb_mean = np.zeros((N, C))
+        p_gibbs = np.zeros((N_thin, N_sub, C))
+        pnb_mean = np.zeros((N, C))
+        naccept = [0] * N_sub
+        mu_now = np.zeros((N_sub, C))
+        sigma2_now = [None] * N_sub
+        theta_now = np.zeros((N_sub, C))
+        p_now = np.zeros((N_sub, C))  # csmf_sub
+        zero_matrix = np.zeros((N, C), dtype=np.int32)
+        zero_group_matrix = np.zeros((N_sub, C), dtype=np.int32)
+        remove_causes = np.zeros(N_sub)
+        pnb = np.empty((N, C))
+        y_new = np.empty(N)
+        y = np.zeros((N_sub, C))
+        N_out = 1 + N_sub * C * N_thin + N * C + N_sub * (C * 2 + 1)
+        if pool == 0:
+            N_out += N_level * N_thin
+        else:
+            N_out += S * C * N_thin
+        parameters = np.empty(N_out)
+        is_openva_app = self.openva_app is not None
+        sampler.fit(prior_a, prior_b, jumprange, trunc_min, trunc_max,
+                    indic, contains_missing,
+                    N_gibbs, burn, thin, mu, sigma2, use_probbase, is_added,
+                    mu_continue, sigma2_continue, theta_continue, impossible,
+                    probbase_gibbs,
+                    levels_gibbs,
+                    p_gibbs,
+                    pnb_mean,
+                    naccept,
+                    mu_now,
+                    sigma2_now,
+                    theta_now,
+                    p_now,
+                    zero_matrix,
+                    zero_group_matrix,
+                    remove_causes,
+                    pnb,
+                    y_new,
+                    y,
+                    parameters,
+                    self.gui_ctrl,
+                    is_openva_app,
+                    self.openva_app)
+        if self.gui_ctrl["break"]:
+            raise HaltGUIException
         fit_results = {"N_sub": N_sub, "C": C, "S": S, "N_level": N_level,
-                       "pool": pool, "fit": fit}
+                       "pool": pool,
+                       "fit": parameters}
         results = self._parse_result(fit_results)
         # check convergence
         if results["csmf_sub"] is not None:
@@ -1297,42 +1382,72 @@ class InSilicoVA:
         if self.auto_length:
             add = 1
             while not conv and add < 3:
-                mu_last = results["mu_last"]
-                sigma2_last = results["sigma2_last"]
-                theta_last = results["theta_last"]
+                mu_continue = results["mu_last"]
+                sigma2_continue = results["sigma2_last"]
+                theta_continue = results["theta_last"]
                 # same length as previous chain if added the first time
                 # double the length if the second time
-                self.n_sim = self.n_sim * 2
-                self.burnin = self.n_sim / 2
+                # self.n_sim = self.n_sim * 2
+                # self.burnin = self.n_sim / 2
                 N_gibbs = int(np.trunc(N_gibbs * (2 ** (add - 1))))
-                burn = int(0)
-                keepProb = not self.update_cond_prob
+                burn = 0
+                N_thin = int((N_gibbs - burn) / (thin))
+                probbase_gibbs = np.zeros((N_thin, S, C))
+                levels_gibbs = np.zeros((N_thin, N_level))
+                p_gibbs = np.zeros((N_thin, N_sub, C))
                 warnings.warn(
                     f"Not all causes with CSMF > {self.conv_csmf} are "
                     f"convergent.\n Increase chain length with another "
                     f"{N_gibbs} iterations.\n")
-                fit_add = sampler.fit(
-                    dimensions=dimensions,
-                    probbase=self._cond_prob.copy(),
-                    probbase_order=self._prob_order.copy(),
-                    level_values=level_values, prior_a=prior_a,
-                    prior_b=prior_b, jumprange=jumprange,
-                    trunc_min=trunc_min, trunc_max=trunc_max,
-                    indic=indic, subpop=subpop,
-                    contains_missing=contains_missing, pool=pool,
-                    seed=seed, N_gibbs=N_gibbs, burn=burn,
-                    thin=thin, mu=mu, sigma2=sigma2,
-                    this_is_Unix=this_is_Unix,
-                    useProbbase=keepProb, isAdded=True,
-                    mu_continue=mu_last,
-                    sigma2_continue=sigma2_last,
-                    theta_continue=theta_last, C_phy=C_phy,
-                    broader=broader, assignment=assignment,
-                    impossible=impossible,
-                    openva_app=self.openva_app)
+                N_out = (1 + N_sub * C * N_thin +
+                         N * C + N_sub * (C * 2 + 1))
+                if pool == 0:
+                    N_out += N_level * N_thin
+                else:
+                    N_out += S * C * N_thin
+                parameters = np.empty(N_out)
+                sampler.fit(prior_a,
+                            prior_b,
+                            jumprange,
+                            trunc_min,
+                            trunc_max,
+                            indic,
+                            contains_missing,
+                            N_gibbs,
+                            burn,
+                            thin,
+                            mu,
+                            sigma2,
+                            use_probbase,
+                            True,
+                            mu_continue,
+                            sigma2_continue,
+                            theta_continue,
+                            impossible,
+                            probbase_gibbs,
+                            levels_gibbs,
+                            p_gibbs,
+                            pnb_mean,
+                            naccept,
+                            mu_now,
+                            sigma2_now,
+                            theta_now,
+                            p_now,
+                            zero_matrix,
+                            zero_group_matrix,
+                            remove_causes,
+                            pnb,
+                            y_new,
+                            y,
+                            parameters,
+                            self.gui_ctrl,
+                            is_openva_app,
+                            self.openva_app)
+                if self.gui_ctrl["break"]:
+                    raise HaltGUIException
                 fit_results = {"N_sub": N_sub, "C": C, "S": S,
                                "N_level": N_level,
-                               "pool": pool, "fit": fit_add}
+                               "pool": pool, "fit": parameters}
                 results = self._parse_result(fit_results)
                 add += 1
                 # check convergence
@@ -1351,11 +1466,11 @@ class InSilicoVA:
 
     def _parse_result(self, fit_results: Dict) -> Dict:
         n = self.data.shape[0]
-        n_sub = fit_results["N_sub"]
-        c = fit_results["C"]
-        s = fit_results["S"]
-        n_level = fit_results["N_level"]
-        pool = fit_results["pool"]
+        n_sub = int(fit_results["N_sub"])
+        c = int(fit_results["C"])
+        s = int(fit_results["S"])
+        n_level = int(fit_results["N_level"])
+        pool = int(fit_results["pool"])
         fit = fit_results["fit"]
         counter = 0
         csmf_sub = None
@@ -1364,7 +1479,7 @@ class InSilicoVA:
         level_gibbs = None
 
         # extract N_thin
-        n_thin = fit[0]
+        n_thin = int(fit[0])
         counter += 1
         # extract CSMF
         if n_sub > 1:
@@ -1442,9 +1557,11 @@ class InSilicoVA:
                     # csmf_sub_all.append(np.zeros(dims))
                     # rescale the non-external CSMF once the external
                     # cause are added
-                    rescale = sum(self._sublist[val]) / (
-                            sum(self._sublist[val]) + sum(
-                        self._ext_sub == val))
+                    rescale = (
+                        sum(self._sublist[val]) /
+                        (sum(self._sublist[val]) +
+                         sum(self._ext_sub == val))
+                    )
                     temp = csmf_sub[j] * rescale
                     # combine the rescaled non-external CSMF with the
                     # external CSMF

@@ -1,3 +1,3 @@
 include README.md
 include LICENSE
-include insilicova/data/*.csv
+include src/insilicova/data/*.csv

@@ -6,8 +6,10 @@ import numpy as np
 import os
 import sys
 from typing import Dict
+# import threading
 from insilicova.api import InSilicoVA
-from insilicova.exceptions import ArgumentException, DataException
+from insilicova.exceptions import (ArgumentException, DataException,
+                                   HaltGUIException, SamplerException)
 from insilicova.utils import get_vadata
 from insilicova.structures import InSilico, InSilicoAllExt
 
@@ -15,8 +17,8 @@ va_data = get_vadata("randomva5", verbose=False)
 
 
 with pytest.warns(UserWarning):
-    default = InSilicoVA(va_data, subpop=["i019a"], n_sim=10, burnin=1,
-                         thin=1, auto_length=False)
+        default = InSilicoVA(va_data, subpop=["i019a"], n_sim=1000, burnin=300,
+                             thin=10, auto_length=False)
 
 va_data1 = get_vadata("randomva1", verbose=False)
 probbase3 = get_vadata("probbaseV3", verbose=False)
@@ -29,7 +31,7 @@ class TestChangeDataCoding:
     tmp_data1 = va_data.copy()
     tmp_data1.iloc[0:10, 1] = "maybe"
     spop = "i019a"
-    tmp_data1[spop].replace(".", np.NaN, inplace=True)
+    tmp_data1[spop] = tmp_data1[spop].replace(".", np.NaN)
     tmp_out1 = InSilicoVA(tmp_data1, subpop=spop, run=False)
     tmp_out1._change_data_coding()
     tmp_data_exc = va_data.copy()
@@ -364,6 +366,7 @@ class TestRemoveBad:
     age_ind = df_age.index[0:n_bad_age]
     age_col = ["elder", "midage", "adult", "child",
                "under5", "infant", "neonate"]
+    df_age = df_age.astype({i: "O" for i in age_col})
     df_age.loc[age_ind, age_col] = "N"
     ins_bad_age = InSilicoVA(df_age, data_type="WHO2012", run=False)
     ins_bad_age._change_data_coding()
@@ -394,6 +397,7 @@ class TestRemoveBad:
     remove_col = age_col.copy()
     remove_col.extend(["ID", "male", "female"])
     keep_col = list(set(data_col) - set(remove_col))
+    df_all = df_all.astype({i: "O" for i in keep_col})
     df_all.loc[all_ind, keep_col] = "N"
     ins_bad_all = InSilicoVA(df_all, data_type="WHO2012", run=False)
     ins_bad_all._change_data_coding()
@@ -897,9 +901,9 @@ def test_sampler():
     tmp_out = InSilicoVA(va_data,
                          subpop="i019a",
                          run=False,
-                         n_sim=10,
-                         burnin=1,
-                         thin=1,
+                         n_sim=1000,
+                         burnin=500,
+                         thin=10,
                          auto_length=False)
     tmp_out._change_data_coding()
     tmp_out._check_args()
@@ -937,3 +941,13 @@ def test_all_external():
     with pytest.warns(UserWarning):
         out = InSilicoVA(tmp_data)
     assert isinstance(out.results, InSilicoAllExt)
+
+
+# def run_insilicova(ctrl):
+#     out = InSilicoVA(va_data, gui_ctrl=ctrl)
+#     return out
+
+# ctrl = {"break": False}
+# x = threading.Thread(target=run_insilicova, args=(ctrl, ))
+# x.start()
+# ctrl["break"] = True

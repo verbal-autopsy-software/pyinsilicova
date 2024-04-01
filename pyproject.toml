@@ -1,3 +1,59 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = [
+    "setuptools>=61.0",
+    "pybind11>=2.10.0",
+]
 build-backend = "setuptools.build_meta"
+
+[external]
+build-requires = [
+    "virtual:compiler/cpp",
+    "pkg:generic/boost",
+]
+
+[project]
+name = "insilicova"
+version = "0.0.3"
+authors = [
+    {name = "Jason Thomas", email = "jarathomas@gmail.com"},
+    {name = "Sherry Zhao", email =" zhao.3248@buckeyemail.osu.edu"},
+]
+maintainers = [
+    {name = "Jason Thomas", email = "jarathomas@gmail.com"},
+]
+description = "Python implementation of the InSilicoVA Algorithm."
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["verbal autopsy",]
+license = {text = "GPLv3"}
+classifiers=[
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+        "Operating System :: OS Independent",
+]
+dependencies = [
+        "pandas",
+        "numpy",
+        "vacheck >= 0.0.2",
+        "statsmodels",
+        "scipy",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/verbal-autopsy-software/pyinsilicova"
+"Bug Tracker" = "https://github.com/verbal-autopsy-software/pyinsilicoVA/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"insilicova.data" = ["*.csv"]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+    ]

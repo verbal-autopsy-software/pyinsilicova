@@ -10,20 +10,20 @@ from insilicova.diag import csmf_diag
 va_data = get_vadata("randomva5", verbose=False)
 
 with pytest.warns(UserWarning):
-    out1 = InSilicoVA(va_data, n_sim=100, burnin=10,
-                      thin=2, auto_length=False, seed=33)
-    out2 = InSilicoVA(va_data, n_sim=100, burnin=10,
-                      thin=2, auto_length=False, seed=243)
-    out3 = InSilicoVA(va_data, n_sim=100, burnin=10,
-                      thin=2, auto_length=False, seed=567)
+    out1 = InSilicoVA(va_data, n_sim=1000, burnin=500,
+                      thin=10, auto_length=False, seed=33)
+    out2 = InSilicoVA(va_data, n_sim=1000, burnin=500,
+                      thin=10, auto_length=False, seed=243)
+    out3 = InSilicoVA(va_data, n_sim=1000, burnin=500,
+                      thin=10, auto_length=False, seed=567)
 
 with pytest.warns(UserWarning):
-    out4 = InSilicoVA(va_data, subpop=["i019a"], n_sim=100, burnin=10,
-                      thin=2, auto_length=False, seed=645)
-    out5 = InSilicoVA(va_data, subpop=["i019a"], n_sim=100, burnin=10,
-                      thin=2, auto_length=False, seed=7934)
-    out6 = InSilicoVA(va_data, subpop=["i019a"], n_sim=100, burnin=10,
-                      thin=2, auto_length=False, seed=6)
+    out4 = InSilicoVA(va_data, subpop=["i019a"], n_sim=1000, burnin=500,
+                      thin=10, auto_length=False, seed=645)
+    out5 = InSilicoVA(va_data, subpop=["i019a"], n_sim=1000, burnin=500,
+                      thin=10, auto_length=False, seed=7934)
+    out6 = InSilicoVA(va_data, subpop=["i019a"], n_sim=1000, burnin=500,
+                      thin=10, auto_length=False, seed=6)
 
 results1 = out1.get_results()
 results2 = out2.get_results()
@@ -42,8 +42,8 @@ csmf4_1 = np.delete(results4.csmf[1].to_numpy(),
 
 def test_single_csmf_no_subpop():
     out_diag = csmf_diag(csmf1)
-    assert isinstance(out_diag[0], pd.DataFrame)
-    assert out_diag[0].shape[1] == 6
+    assert isinstance(out_diag, pd.DataFrame)
+    assert out_diag.shape[1] == 6
 
 
 def test_csmf_list():

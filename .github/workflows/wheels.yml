@@ -1,11 +1,10 @@
 name: Build and upload to PyPI
 
 on:
-  workflow_dispatch
+  workflow_dispatch:
   release:
     types:
       - published
-
 
 jobs:
   build_wheels:
@@ -36,33 +35,35 @@ jobs:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
 
-  build_sdist:
-    name: Build source distribution
+  make_sdist:
+    name: Make SDist
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build sdist
+        with:
+          submodules: true
+
+      - name: Build SDist
         run: pipx run build --sdist
+
       - uses: actions/upload-artifact@v4
         with:
           name: cibw-sdist
           path: dist/*.tar.gz
 
-  upload_pypi:
-    needs: [build_wheels, build_sdist]
-    runs-on: ubuntu-latest
+  upload_all:
+    needs: [build_wheels, make_sdist]
     environment: pypi
     permissions:
       id-token: write
+    runs-on: ubuntu-latest
     if: github.event_name == 'release' && github.event.action == 'published'
     steps:
       - uses: actions/download-artifact@v4
         with:
-          # unpacks all CIBW artifacts into dist/
           pattern: cibw-*
           path: dist
           merge-multiple: true
 
       - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          # To test: repository-url: https://test.pypi.org/legacy/
+

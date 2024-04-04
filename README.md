@@ -4,8 +4,8 @@
 
 
 Python implementation of the InSilicoVA algorithm for assigning causes of death to verbal autopsy (VA) data collected with the 2016 WHO VA instrument.
-This package is an attempt to replicate the R version (InSilicoVA)[https://github.com/verbal-autopsy-software/InSilicoVA], but the R version
-offers more features and functionality via the (openva)[https://github.com/verbal-autopsy-software/openVA] R package.
+This package is an attempt to replicate the R version [InSilicoVA](https://github.com/verbal-autopsy-software/InSilicoVA), but the R version
+offers more features and functionality via the [openva](https://github.com/verbal-autopsy-software/openVA) R package.
 
 Example run:
 

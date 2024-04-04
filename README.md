@@ -25,8 +25,8 @@ results.get_csmf()    # returns CSMF
 
 ## Build Dependencies
 
-This package depends on the C++ library boost (v1.82.0) [https://www.boost.org/](https://www.boost.org/) and the Python package
-pyind11 ([pybind11 docs](https://pybind11.readthedocs.io/en/latest/)).
+The insilicova package depends on the C++ library boost (v1.82.0) [https://www.boost.org/](https://www.boost.org/), and the Python package
+pyind11 ([pybind11 docs](https://pybind11.readthedocs.io/en/latest/)) is used to help build insilicova.
 
 * On Windows it is assumed that boost is installed at: `C:\Program Files\boost\boost_1_82_0` (as specified in `setup.py`)
 

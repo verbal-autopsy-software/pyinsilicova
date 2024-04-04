@@ -39,7 +39,7 @@ classifiers=[
 dependencies = [
         "pandas",
         "numpy",
-        "vacheck >= 0.0.2",
+        "vacheck >= 0.0.3",
         "statsmodels",
         "scipy",
 ]

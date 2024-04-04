@@ -1,6 +1,6 @@
 # pyinsilicova
 
-[![pytest](https://github.com/verbal-autopsy-software/pyinsilicova/actions/workflows/python-package.yml/badge.svg)](https://github.com/verbal-autopsy-software/pyinsilicova/actions)
+[![image](https://img.shields.io/pypi/pyversions/insilicova)](https://pypi.org/project/insilicova/)
 
 
 Python implementation of the InSilicoVA algorithm for assigning causes of death to verbal autopsy (VA) data collected with the 2016 WHO VA instrument.

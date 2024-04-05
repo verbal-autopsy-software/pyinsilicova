@@ -13,7 +13,7 @@ build-requires = [
 
 [project]
 name = "insilicova"
-version = "0.1.0"
+version = "0.1.1"
 authors = [
     {name = "Jason Thomas", email = "jarathomas@gmail.com"},
     {name = "Sherry Zhao", email =" zhao.3248@buckeyemail.osu.edu"},

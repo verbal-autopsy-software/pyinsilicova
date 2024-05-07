@@ -914,9 +914,14 @@ class InSilicoVA:
                 self._missing_all.append(i)
         if len(self._missing_all) > 0:
             missing_all_plus1 = np.array(self._missing_all) + 1
+            pb_no_ext = np.delete(self._probbase,
+                                  self._external_symps,
+                                  axis=0)
             missing_all_names = ", ".join(
-                self._probbase[missing_all_plus1,
-                               int(self.data_type == "WHO2012")])
+                # self._probbase[missing_all_plus1,
+                #                int(self.data_type == "WHO2012")])
+                pb_no_ext[missing_all_plus1,
+                          int(self.data_type == "WHO2012")])
             warnings.warn(f"{len(self._missing_all)} symptoms missing "
                           "completely and added to missing list. \n List of "
                           f"missing symptoms: {missing_all_names}\n",

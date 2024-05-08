@@ -396,11 +396,11 @@ void Sampler::count_current(double *ptr_indic,
         }
     }
 
-    // loop over all inidviduals
+    // loop over all individuals
     for (int n = 0; n < N; ++n) {
         // cause of this death
         int c_current = (int) y_new(n);
-        // add to toal counts
+        // add to total counts
         ptr_count_c[c_current] += 1;
         // loop over all symptoms
         for (int s = 0; s < S; ++s) {
@@ -515,7 +515,7 @@ void Sampler::trunc_beta2(py::array_t<double> prior_a, double prior_b,
                     }
                     upper = std::min(upper, trunc_max);
                 }
-                // if range is invalide, use higher case
+                // if range is invalid, use higher case
                 if (lower >= upper) {
                     proxy_new_pbase(s, c.cast<int>()) = upper;
                 } else {
@@ -617,7 +617,7 @@ void Sampler::trunc_beta(py::array_t<double> prior_a, double prior_b,
                     }
                     upper = std::min(upper, trunc_max);
                 }
-                // if range is invalide, use higher case
+                // if range is invalid, use higher case
                 if (lower >= upper) {
                     proxy_new_pbase(s.cast<int>(), c) = upper;
                 } else {
@@ -893,7 +893,7 @@ void Sampler::fit(py::array_t<double> prior_a, double prior_b,
         }       
     }
 
-    // reinitiate after checking impossible
+    // re-initiate after checking impossible
     if (!is_added) {
         for (int sub = 0; sub < N_sub; ++sub) {
             int fix = 0;

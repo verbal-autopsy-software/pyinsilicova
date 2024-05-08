@@ -1327,7 +1327,6 @@ class InSilicoVA:
         N_thin = int((N_gibbs - burn) / (thin))
         probbase_gibbs = np.zeros((N_thin, S, C))
         levels_gibbs = np.zeros((N_thin, N_level))
-        pnb_mean = np.zeros((N, C))
         p_gibbs = np.zeros((N_thin, N_sub, C))
         pnb_mean = np.zeros((N, C))
         naccept = [0] * N_sub
@@ -1396,10 +1395,11 @@ class InSilicoVA:
                 # self.burnin = self.n_sim / 2
                 N_gibbs = int(np.trunc(N_gibbs * (2 ** (add - 1))))
                 burn = 0
-                N_thin = int((N_gibbs - burn) / (thin))
+                N_thin = int((N_gibbs - burn) / thin)
                 probbase_gibbs = np.zeros((N_thin, S, C))
                 levels_gibbs = np.zeros((N_thin, N_level))
                 p_gibbs = np.zeros((N_thin, N_sub, C))
+                pnb_mean = np.zeros((N, C))
                 warnings.warn(
                     f"Not all causes with CSMF > {self.conv_csmf} are "
                     f"convergent.\n Increase chain length with another "

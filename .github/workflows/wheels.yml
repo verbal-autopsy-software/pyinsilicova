@@ -30,7 +30,9 @@ jobs:
           brew update
           brew install boost
           echo "CPLUS_INCLUDE_PATH=/opt/homebrew/Cellar/boost/1.85.0" >> "$GITHUB_ENV"
-          echo 'c++ include path: "$CPLUS_INCLUDE_PATH"'
+          echo $CPLUS_INCLUDE_PATH
+          echo "$CPLUS_INCLUDE_PATH"
+          echo ${{ GITHUB_ENV }}
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.17.0
         env:

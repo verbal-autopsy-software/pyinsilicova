@@ -29,15 +29,13 @@ jobs:
         run: |
           brew update
           brew install boost
-          echo "CPLUS_INCLUDE_PATH=/opt/homebrew/Cellar/boost/1.85.0" >> "$GITHUB_ENV"
-          echo $CPLUS_INCLUDE_PATH
-          echo "$CPLUS_INCLUDE_PATH"
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.17.0
         env:
           BUILD_EXTENSION: yes
           CIBW_SKIP: "pp* *-win32 *-musllinux_x86_64 *_i686"
           CIBW_BEFORE_ALL_LINUX: yum install -y boost-devel
+          CIBW_ENVIRONMENT_MACOS: CXXFLAGS='-I/opt/homebrew/Cellar/boost/1.85.0'
       - uses: actions/upload-artifact@v4
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}

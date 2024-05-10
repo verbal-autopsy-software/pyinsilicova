@@ -29,8 +29,8 @@ jobs:
         run: |
           brew update
           brew install boost
-	  echo "CC=clang" >> "$GITHUB_ENV"
-	  echo "CXX=clang++" >> "$GITHUB_ENV"
+          echo "CC=clang" >> "$GITHUB_ENV"
+          echo "CXX=clang++" >> "$GITHUB_ENV"
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.17.0
         env:

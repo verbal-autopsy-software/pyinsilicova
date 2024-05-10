@@ -26,10 +26,9 @@ jobs:
           7z x -o"C:\Program Files\boost\" "C:\Program Files\boost\boost_1_82_0.zip"
       - name: Set mac compiler
         if: runner.os == 'macOS'
-	env:
-	  CC: clang
-	  CXX: clang++
-	  PRESET: ci-clang-${{ matrix.build-option }}
+	  env:
+	    CC: clang
+	    CXX: clang++
       - name: Install dependencies for Mac
         if: runner.os == 'macOS'
         run: |

@@ -29,12 +29,12 @@ jobs:
 	env:
 	  CC: clang
 	  CXX: clang++
+	  PRESET: ci-clang-${{ matrix.build-option }}
       - name: Install dependencies for Mac
         if: runner.os == 'macOS'
         run: |
           brew update
           brew install boost
-
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.17.0
         env:

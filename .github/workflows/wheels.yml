@@ -24,14 +24,17 @@ jobs:
           New-Item -Path "C:\Program Files\" -Name "boost" -ItemType "directory"
           Invoke-WebRequest -Uri  https://boostorg.jfrog.io/artifactory/main/release/1.82.0/source/boost_1_82_0.zip -OutFile "C:\Program Files\boost\boost_1_82_0.zip"
           7z x -o"C:\Program Files\boost\" "C:\Program Files\boost\boost_1_82_0.zip"
-      - name: Install dependencies for Mac
+      - name: Set mac compiler
         if: runner.os == 'macOS'
 	env:
 	  CC: clang
 	  CXX: clang++
+      - name: Install dependencies for Mac
+        if: runner.os == 'macOS'
         run: |
           brew update
           brew install boost
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.17.0
         env:

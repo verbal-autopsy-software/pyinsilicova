@@ -1,7 +1,16 @@
-# insilicova (Python version)
+# insilicova (Python version) -- NOT MAINTAINED
 
+<!---
 [![image](https://img.shields.io/pypi/pyversions/insilicova)](https://pypi.org/project/insilicova/)
+--->
 
+**At this time we do not have the resources to actively maintain this software.** 
+
+*We are actively maintaining research-oriented software that supports
+our publications, but we are not able to support user-facing packages, modules,
+or applications.*
+
+<br><br><br><br>
 
 Python implementation of the InSilicoVA algorithm for assigning causes of death
 to verbal autopsy (VA) data collected with the 2016 WHO VA instrument.  This
@@ -25,7 +34,6 @@ results.get_summary() # prints CSMF
 results.get_csmf()    # returns CSMF
 ```
 
-
 ## Build Dependencies
 
 The insilicova package depends on the C++ library [boost](https://www.boost.org/)
@@ -34,6 +42,3 @@ The insilicova package depends on the C++ library [boost](https://www.boost.org/
 
 * On Windows it is assumed that boost is installed at:
   `C:\Program Files\boost\boost_1_82_0` (as specified in `setup.py`)
-
-* Build the package with `python -m build`
-
